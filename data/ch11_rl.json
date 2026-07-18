@@ -1,0 +1,420 @@
+{
+  "id": "ch11",
+  "roman": "XI",
+  "title": "Reinforcement Learning",
+  "blurb": "★ Overview only · Reinforcement learning frames sequential decision-making as a Markov Decision Process where an agent maximizes long-term discounted reward. This chapter builds from MDPs and Bellman equations through model-free control (Monte Carlo, TD, Q-learning) up to Deep Q-Networks with experience replay and target networks.",
+  "knowledge_points": [
+    {
+      "id": "mdp-value-bellman",
+      "title": "MDPs, Returns & Bellman Equations",
+      "recap": "An **MDP** $(\\mathcal{S},\\mathcal{A},\\mathcal{P},\\mathcal{R},\\gamma)$ formalizes the environment; a state is **Markov** if the future depends only on the present. The agent maximizes the **discounted return** $G_t=\\sum_{k=0}^{\\infty}\\gamma^k R_{t+k+1}$ with **discount factor** $\\gamma\\in[0,1]$. The **state-value** $v_\\pi(s)$ and **action-value** $q_\\pi(s,a)$ measure long-term value under policy $\\pi$. The **Bellman expectation equation** decomposes value into immediate reward plus discounted next-state value (linear, for a fixed policy); the **Bellman optimality equation** replaces the average over actions with a **max** (non-linear, for control).",
+      "questions": [
+        {
+          "type": "open",
+          "freq": 3,
+          "sources": [
+            "L11"
+          ],
+          "tags": [
+            "mdp",
+            "bellman"
+          ],
+          "q": "State the Markov property and explain the difference between the Bellman expectation equation and the Bellman optimality equation.",
+          "answer": "The **Markov property** says the future depends only on the present state, not the past history: the current state already encodes everything relevant for predicting the next state. The **Bellman expectation equation** expresses the value of a **fixed policy** as immediate reward plus the (discounted) expected value of the next state, **averaging over actions according to that policy**; it is **linear** and has a closed-form matrix solution. The **Bellman optimality equation** instead takes the **max over actions** rather than averaging, describing the best achievable value $v^*(s)$ / $q^*(s,a)$; it is **non-linear** with no general closed form and is solved iteratively (value iteration, policy iteration, Q-learning, SARSA). Knowing $q^*(s,a)$ essentially solves the MDP: in each state pick the action with the largest action-value.",
+          "extend": "Prediction (policy evaluation) estimates the value of a fixed policy; control finds the optimal policy by combining evaluation with greedy policy improvement."
+        },
+        {
+          "type": "open",
+          "freq": 3,
+          "sources": [
+            "L11"
+          ],
+          "tags": [
+            "return",
+            "discount",
+            "calc"
+          ],
+          "q": "An agent receives rewards $R_1=1, R_2=1, R_3=1, R_4=1$ over four steps with discount factor $\\gamma=0.9$ and zero reward thereafter. Compute the discounted return $G_0$.",
+          "answer": "Using $G_0=\\sum_{k=0}^{3}\\gamma^{k}R_{k+1}=1+0.9+0.9^2+0.9^3$. That is $1+0.9+0.81+0.729=3.439$. So $G_0=3.439$.",
+          "calc": [
+            {
+              "label": "G_0",
+              "value": 3.439,
+              "tol": 0.01
+            }
+          ],
+          "extend": "Small $\\gamma$ produces short-sighted behavior; large $\\gamma$ favors long-horizon reward. The discount also keeps the infinite sum finite."
+        },
+        {
+          "type": "open",
+          "freq": 2,
+          "sources": [
+            "L11"
+          ],
+          "tags": [
+            "value-iteration",
+            "calc"
+          ],
+          "q": "In the gridworld S1 - S2 - Goal, each move costs -1 and reaching the Goal from S2 gives +10. Starting value iteration from V=0 everywhere, compute the iteration-1 value of S2 (best action).",
+          "answer": "From S2 the agent compares actions: going **left** yields $-1$ (cost, next state value still 0), going **right** to the Goal yields $-1+10=+9$. Value iteration takes the **max**, so $V(S2)=+9$ after iteration 1.",
+          "calc": [
+            {
+              "label": "V(S2) iter 1",
+              "value": 9,
+              "tol": 0.001
+            }
+          ],
+          "extend": "At iteration 2, S1's best value becomes $-1+9=+8$ by bootstrapping from the improved V(S2)."
+        }
+      ]
+    },
+    {
+      "id": "model-free-control",
+      "title": "Model-Free Prediction & Control",
+      "recap": "When the model is unknown the agent learns from sampled experience. **Monte Carlo** waits for a complete episode and updates toward the realized return (unbiased, high variance). **Temporal-Difference** learning **bootstraps**, updating from the immediate reward plus the estimated next-state value (biased but often faster, lower variance). Control needs both good value estimates and **exploration** via **epsilon-greedy**. **SARSA** is **on-policy** (learns the policy it follows, including exploratory actions); **Q-learning** is **off-policy** (learns the greedy policy while following another).",
+      "questions": [
+        {
+          "type": "open",
+          "freq": 3,
+          "sources": [
+            "L11"
+          ],
+          "tags": [
+            "mc-vs-td"
+          ],
+          "q": "Contrast Monte Carlo and Temporal-Difference prediction, including the meaning of bootstrapping and the bias-variance trade-off.",
+          "answer": "**Monte Carlo (MC)** learns from the 'finish line': it waits until an episode terminates, observes the **actual realized return**, and moves the value estimate toward it (value = mean return). It needs no model but usually requires episodes to terminate and can be slow. **Temporal-Difference (TD)** learns 'step-by-step': it **bootstraps**, updating an estimate using another estimate — namely the **immediate reward plus the estimated value of the next state** (TD(0) target $R_{t+1}+\\gamma V(S_{t+1})$), and the **TD error** measures how surprising the one-step outcome was. Trade-off: **MC has low/no bias but high variance**, while **TD has more bias (an estimate of an estimate) but lower variance and is often more data-efficient / online**.",
+          "extend": "MC and TD form a continuum; intermediate methods like n-step returns or TD(lambda) blend them."
+        },
+        {
+          "type": "mc",
+          "freq": 2,
+          "sources": [
+            "L11"
+          ],
+          "tags": [
+            "q-learning",
+            "on-off-policy"
+          ],
+          "q": "Which statement correctly distinguishes Q-learning from SARSA?",
+          "answer": "Q-learning is off-policy (learns the greedy target policy while following an exploratory behavior policy); SARSA is on-policy.",
+          "options": [
+            {
+              "text": "Q-learning is off-policy: it learns about the greedy policy while following a different (exploratory) policy; SARSA is on-policy.",
+              "correct": true
+            },
+            {
+              "text": "SARSA is off-policy and Q-learning is on-policy.",
+              "correct": false
+            },
+            {
+              "text": "Both are model-based dynamic-programming methods requiring the transition matrix.",
+              "correct": false
+            },
+            {
+              "text": "Q-learning requires complete episodes while SARSA bootstraps.",
+              "correct": false
+            }
+          ],
+          "extend": "Off-policy learning is more sample-efficient because it can reuse data from other/older/exploratory policies."
+        },
+        {
+          "type": "open",
+          "freq": 2,
+          "sources": [
+            "L11"
+          ],
+          "tags": [
+            "exploration"
+          ],
+          "q": "Why is greedy improvement alone insufficient in model-free control, and how does epsilon-greedy address it?",
+          "answer": "If the agent always exploits (picks what currently looks best), it may **never discover better alternatives** because unseen actions never get tried — this is the **exploration vs. exploitation** dilemma. **Epsilon-greedy** balances the two: with probability $1-\\epsilon$ take the current greedy action (exploit), and with probability $\\epsilon$ take a random action (explore). This guarantees continued exploration so the agent can improve its value estimates for all actions.",
+          "extend": "More advanced strategies include bandit methods and GLIE schedules that decay epsilon over time."
+        }
+      ]
+    },
+    {
+      "id": "deep-rl-dqn",
+      "title": "Deep RL & DQN",
+      "recap": "Tabular RL stores one value per state-action pair and breaks in large/continuous spaces, so modern RL uses **function approximation** (neural networks) that **generalize** across similar states. This bridge to **Deep RL** is unstable because bootstrapping + off-policy + function approximation can diverge. **DQN** stabilizes training with two tools: **experience replay** (store past transitions and sample them to break temporal correlations and reuse data) and a **target network** (a slowly-updated copy that provides stable targets instead of chasing a moving target).",
+      "questions": [
+        {
+          "type": "open",
+          "freq": 3,
+          "sources": [
+            "L11"
+          ],
+          "tags": [
+            "dqn",
+            "replay",
+            "target"
+          ],
+          "q": "Explain why naive neural-network Q-learning is unstable and how experience replay and target networks help.",
+          "answer": "Combining **bootstrapping, off-policy learning and function approximation** can make training **unstable/diverge**. Two problems: online transitions are **strongly temporally correlated**, and the TD **target depends on the network's own current weights**, so as the network updates, the target it chases keeps moving (like a dog chasing its tail), causing oscillations. **Experience replay** stores past transitions in a buffer and **samples them randomly later**, breaking temporal correlations and using data more efficiently. A **target network** is a periodically-updated copy of the Q-network used to compute the targets, so the target stays fixed for a while and training is far more stable.",
+          "extend": "DeepMind's 2013 DQN combined these tricks to learn control directly from high-dimensional inputs."
+        },
+        {
+          "type": "open",
+          "freq": 2,
+          "sources": [
+            "L11",
+            "Lab11"
+          ],
+          "tags": [
+            "code",
+            "dqn"
+          ],
+          "q": "**Fill in the blanks** (rotating variant each visit): DQN regression-target construction from a replay batch (CartPole).",
+          "answer": "For each sampled transition the DQN target for the taken action is:\n```python\nfor i in range(batch_size):\n    if done[i]:\n        target[i][action[i]] = reward[i]\n    else:\n        # Q_target = r + gamma * max_a' Q(s', a')\n        target[i][action[i]] = reward[i] + self.gamma * np.amax(target_next[i])\n```\nThis is the **Bellman/Q-learning update** turned into a supervised regression target: if the episode ended (`done`), the target is just the immediate **reward**; otherwise it is **reward + gamma * max over next-state Q-values** (`target_next` are the network's predicted Q-values for `next_state`). The network is then fit to predict these targets, so DQN treats value learning as a regression problem (hence a **linear/identity output** and **MSE-style loss**). Actions are chosen with epsilon-greedy: a random action with probability `epsilon`, else `np.argmax(model.predict(state))`.",
+          "extend": "CartPole has a 4-D state [cart position, cart velocity, pole angle, pole angular velocity], two actions (+1/-1 force), reward +1 per upright step, gamma=0.95, with epsilon decayed over time.",
+          "variants": [
+            {
+              "note": "Bellman target",
+              "code": "```python\nif done[i]:\n    target[i][action[i]] = ____(1)\nelse:\n    target[i][action[i]] = reward[i] + self.____(2) * np.amax(____(3))\n```",
+              "blanks": [
+                {
+                  "label": "(1)",
+                  "accept": [
+                    "reward[i]",
+                    "reward"
+                  ],
+                  "hint": "terminal target is just the immediate reward"
+                },
+                {
+                  "label": "(2)",
+                  "accept": [
+                    "gamma"
+                  ],
+                  "hint": "discount factor attribute"
+                },
+                {
+                  "label": "(3)",
+                  "accept": [
+                    "target_next[i]",
+                    "target_next"
+                  ],
+                  "hint": "predicted Q-values for next_state"
+                }
+              ]
+            },
+            {
+              "note": "Discount and max",
+              "code": "```python\nq_next = np.____(1)(target_next[i])   # best next-state value\ntarget[i][action[i]] = reward[i] + ____(2) * q_next\n```",
+              "blanks": [
+                {
+                  "label": "(1)",
+                  "accept": [
+                    "amax",
+                    "max"
+                  ],
+                  "hint": "max over next-state Q-values"
+                },
+                {
+                  "label": "(2)",
+                  "accept": [
+                    "self.gamma",
+                    "gamma"
+                  ],
+                  "hint": "discount factor"
+                }
+              ]
+            },
+            {
+              "note": "Epsilon-greedy action",
+              "code": "```python\nif np.random.rand() <= ____(1):\n    action = env.action_space.sample()\nelse:\n    action = np.____(2)(model.predict(state))\n```",
+              "blanks": [
+                {
+                  "label": "(1)",
+                  "accept": [
+                    "epsilon",
+                    "self.epsilon"
+                  ],
+                  "hint": "exploration probability"
+                },
+                {
+                  "label": "(2)",
+                  "accept": [
+                    "argmax"
+                  ],
+                  "hint": "pick the greedy action"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "mc",
+          "freq": 1,
+          "sources": [
+            "L11"
+          ],
+          "tags": [
+            "function-approximation"
+          ],
+          "q": "Why does modern RL replace lookup tables with parameterized function approximators?",
+          "answer": "Tables need one value per state-action pair and cannot scale to large/continuous spaces; approximators generalize across similar states.",
+          "options": [
+            {
+              "text": "Tabular storage breaks in large or continuous spaces (e.g. Go, robotics); approximators let similar states share information and generalize.",
+              "correct": true
+            },
+            {
+              "text": "Function approximators remove the need for a reward signal.",
+              "correct": false
+            },
+            {
+              "text": "They make the environment fully known so dynamic programming applies.",
+              "correct": false
+            },
+            {
+              "text": "They guarantee convergence without any additional engineering.",
+              "correct": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ss26-prediction",
+      "title": "🔮 SS26 Likely Exam Questions (predicted)",
+      "recap": "Predicted, exam-style concept questions in the professor's format. Not from a past paper; use to rehearse likely SS26 topics.",
+      "questions": [
+        {
+          "type": "open",
+          "freq": 2,
+          "sources": [
+            "SS26 predicted"
+          ],
+          "tags": [
+            "mdp",
+            "bellman",
+            "SS26 predicted"
+          ],
+          "q": "(a) State the **Markov property**. (b) Explain the difference between the **Bellman expectation equation** and the **Bellman optimality equation**, and say why one is linear while the other is not.",
+          "answer": "(a) The **Markov property** states that the future depends only on the **current state**, not on the past history — the current state already encodes all information relevant for predicting the next state and reward. (b) The **Bellman expectation equation** gives the value of a **fixed policy** as immediate reward plus the discounted expected value of the next state, **averaging over actions according to that policy**; because it is an average with fixed weights it is **linear** and has a closed-form (matrix) solution. The **Bellman optimality equation** takes the **max over actions** instead of averaging, describing the best achievable value $v^*(s)/q^*(s,a)$; the max makes it **non-linear** with no general closed form, so it is solved iteratively (value/policy iteration, Q-learning, SARSA).",
+          "extend": "Knowing $q^*(s,a)$ essentially solves the MDP: in each state just pick the action with the largest action-value."
+        },
+        {
+          "type": "open",
+          "freq": 2,
+          "sources": [
+            "SS26 predicted"
+          ],
+          "tags": [
+            "exploration",
+            "mc-vs-td",
+            "SS26 predicted"
+          ],
+          "q": "(a) Explain the **exploration vs. exploitation** dilemma and how **epsilon-greedy** resolves it. (b) Briefly contrast **Monte Carlo** and **Temporal-Difference** learning, including what **bootstrapping** means.",
+          "answer": "(a) A purely greedy agent always exploits what currently looks best and may **never try — and therefore never discover — better actions**; this tension between using known good actions and trying new ones is the **exploration vs. exploitation** dilemma. **Epsilon-greedy** resolves it by taking the greedy action with probability $1-\\epsilon$ (exploit) and a random action with probability $\\epsilon$ (explore), guaranteeing continued exploration. (b) **Monte Carlo** waits for a **complete episode** and updates toward the actual realized return — **unbiased but high variance**. **Temporal-Difference** **bootstraps**: it updates an estimate using another estimate, namely immediate reward plus the discounted estimated value of the next state ($R_{t+1}+\\gamma V(S_{t+1})$) — **biased (an estimate of an estimate) but lower variance and works online**.",
+          "extend": "MC and TD form a continuum; n-step returns and TD(lambda) blend them. Epsilon is often decayed over time (GLIE)."
+        },
+        {
+          "type": "mc",
+          "freq": 2,
+          "sources": [
+            "SS26 predicted"
+          ],
+          "tags": [
+            "dqn",
+            "replay",
+            "target",
+            "SS26 predicted"
+          ],
+          "q": "A **DQN** adds **experience replay** and a **target network** to neural-network Q-learning. Which statements about why these are needed are correct?",
+          "answer": "Experience replay breaks temporal correlation and reuses data; the target network provides a stable, slowly-updated target; both address instability from combining bootstrapping, off-policy learning and function approximation.",
+          "options": [
+            {
+              "text": "Experience replay stores past transitions and samples them randomly, breaking temporal correlations and improving data efficiency.",
+              "correct": true
+            },
+            {
+              "text": "A target network is a periodically-updated copy of the Q-network that supplies stable targets instead of a constantly moving one.",
+              "correct": true
+            },
+            {
+              "text": "Naive NN Q-learning is unstable because bootstrapping, off-policy learning and function approximation together can diverge.",
+              "correct": true
+            },
+            {
+              "text": "Experience replay is needed because tabular Q-learning cannot represent continuous rewards.",
+              "correct": false
+            }
+          ],
+          "extend": "Q-learning is off-policy (learns the greedy policy while following an exploratory one); SARSA is on-policy."
+        }
+      ]
+    },
+    {
+      "id": "ss26-prediction",
+      "title": "🔮 SS26 Likely Exam Questions (predicted)",
+      "recap": "Predicted, exam-style concept questions in the professor's format. Not from a past paper; use to rehearse likely SS26 topics.",
+      "questions": [
+        {
+          "type": "open",
+          "freq": 2,
+          "sources": [
+            "SS26 predicted"
+          ],
+          "tags": [
+            "mdp",
+            "bellman",
+            "SS26 predicted"
+          ],
+          "q": "(a) State the **Markov property**. (b) Explain the difference between the **Bellman expectation equation** and the **Bellman optimality equation**, and say why one is linear while the other is not.",
+          "answer": "(a) The **Markov property** states that the future depends only on the **current state**, not on the past history — the current state already encodes all information relevant for predicting the next state and reward. (b) The **Bellman expectation equation** gives the value of a **fixed policy** as immediate reward plus the discounted expected value of the next state, **averaging over actions according to that policy**; because it is an average with fixed weights it is **linear** and has a closed-form (matrix) solution. The **Bellman optimality equation** takes the **max over actions** instead of averaging, describing the best achievable value $v^*(s)/q^*(s,a)$; the max makes it **non-linear** with no general closed form, so it is solved iteratively (value/policy iteration, Q-learning, SARSA).",
+          "extend": "Knowing $q^*(s,a)$ essentially solves the MDP: in each state just pick the action with the largest action-value."
+        },
+        {
+          "type": "open",
+          "freq": 2,
+          "sources": [
+            "SS26 predicted"
+          ],
+          "tags": [
+            "exploration",
+            "mc-vs-td",
+            "SS26 predicted"
+          ],
+          "q": "(a) Explain the **exploration vs. exploitation** dilemma and how **epsilon-greedy** resolves it. (b) Briefly contrast **Monte Carlo** and **Temporal-Difference** learning, including what **bootstrapping** means.",
+          "answer": "(a) A purely greedy agent always exploits what currently looks best and may **never try — and therefore never discover — better actions**; this tension between using known good actions and trying new ones is the **exploration vs. exploitation** dilemma. **Epsilon-greedy** resolves it by taking the greedy action with probability $1-\\epsilon$ (exploit) and a random action with probability $\\epsilon$ (explore), guaranteeing continued exploration. (b) **Monte Carlo** waits for a **complete episode** and updates toward the actual realized return — **unbiased but high variance**. **Temporal-Difference** **bootstraps**: it updates an estimate using another estimate, namely immediate reward plus the discounted estimated value of the next state ($R_{t+1}+\\gamma V(S_{t+1})$) — **biased (an estimate of an estimate) but lower variance and works online**.",
+          "extend": "MC and TD form a continuum; n-step returns and TD(lambda) blend them. Epsilon is often decayed over time (GLIE)."
+        },
+        {
+          "type": "mc",
+          "freq": 2,
+          "sources": [
+            "SS26 predicted"
+          ],
+          "tags": [
+            "dqn",
+            "replay",
+            "target",
+            "SS26 predicted"
+          ],
+          "q": "A **DQN** adds **experience replay** and a **target network** to neural-network Q-learning. Which statements about why these are needed are correct?",
+          "answer": "Experience replay breaks temporal correlation and reuses data; the target network provides a stable, slowly-updated target; both address instability from combining bootstrapping, off-policy learning and function approximation.",
+          "options": [
+            {
+              "text": "Experience replay stores past transitions and samples them randomly, breaking temporal correlations and improving data efficiency.",
+              "correct": true
+            },
+            {
+              "text": "A target network is a periodically-updated copy of the Q-network that supplies stable targets instead of a constantly moving one.",
+              "correct": true
+            },
+            {
+              "text": "Naive NN Q-learning is unstable because bootstrapping, off-policy learning and function approximation together can diverge.",
+              "correct": true
+            },
+            {
+              "text": "Experience replay is needed because tabular Q-learning cannot represent continuous rewards.",
+              "correct": false
+            }
+          ],
+          "extend": "Q-learning is off-policy (learns the greedy policy while following an exploratory one); SARSA is on-policy."
+        }
+      ]
+    }
+  ]
+}

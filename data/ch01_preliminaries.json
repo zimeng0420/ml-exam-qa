@@ -1,0 +1,362 @@
+{
+  "id": "ch01",
+  "roman": "I",
+  "title": "Preliminaries: Learning Theory & Math Basics",
+  "blurb": "★★ High-frequency · The theoretical and mathematical foundations of machine learning: when learning is feasible (Hoeffding, VC dimension), the bias-variance tradeoff and overfitting, plus the linear algebra, calculus and probability tools used throughout the course.",
+  "knowledge_points": [
+    {
+      "id": "learning-theory",
+      "title": "The Learning Problem & Generalization Theory",
+      "recap": "Learning replaces an unknown target function $f$ with a hypothesis $g$ chosen from a hypothesis set $H$ using data. Feasibility rests on Hoeffding's inequality, generalized to infinite hypothesis sets via the growth function and VC dimension.",
+      "questions": [
+        {
+          "type": "open",
+          "freq": 3,
+          "sources": [
+            "L01"
+          ],
+          "q": "Describe the essence of machine learning and name the components of the learning problem.",
+          "answer": "Machine learning applies when: (1) **a pattern exists**, (2) **we cannot pin it down mathematically**, and (3) **we have data on it**. The components are: the input $x$, the output $y$, an unknown **target function** $f: X \\to Y$, a **dataset** $(x_1,y_1),\\dots,(x_N,y_N)$, a **hypothesis set** $H$ of candidate formulas, and a **learning algorithm** $A$ that picks the final hypothesis $g \\approx f$. Together $H$ and $A$ form the **learning model**.",
+          "extend": "Pattern + can't-formalize + data = use ML.",
+          "tags": [
+            "learning problem",
+            "hypothesis"
+          ]
+        },
+        {
+          "type": "open",
+          "freq": 3,
+          "sources": [
+            "L01"
+          ],
+          "q": "State Hoeffding's inequality and explain what it tells us about learning feasibility.",
+          "answer": "For a single hypothesis, $P[\\,|E_{in}(h) - E_{out}(h)| > \\epsilon\\,] \\le 2e^{-2\\epsilon^2 N}$. It says the in-sample error $E_{in}$ (the sample frequency $\\nu$) is **probably approximately correct (PAC)**, i.e. likely close to the out-of-sample error $E_{out}$ (the bin frequency $\\mu$) for large $N$. The bound is **valid for all $N$ and $\\epsilon$** and does **not depend on** $\\mu$ or the distribution. This makes learning feasible: with enough data, good in-sample performance generalizes.",
+          "extend": "Big sample, $\\nu \\approx \\mu$: 'possible vs probable'.",
+          "tags": [
+            "Hoeffding",
+            "PAC",
+            "generalization"
+          ]
+        },
+        {
+          "type": "mc",
+          "freq": 3,
+          "sources": [
+            "L01"
+          ],
+          "q": "What is the VC dimension $d_{vc}(H)$ of a hypothesis set?",
+          "answer": "The VC dimension is the **largest number of points $N$ that $H$ can shatter** (realize all $2^N$ dichotomies). It measures the effective number of parameters / degrees of freedom. A finite $d_{vc}$ guarantees generalization, independent of the learning algorithm, input distribution and target function.",
+          "options": [
+            {
+              "text": "The largest number of points that $H$ can shatter (produce all $2^N$ dichotomies)",
+              "correct": true
+            },
+            {
+              "text": "The number of hypotheses in $H$",
+              "correct": false
+            },
+            {
+              "text": "The smallest dataset size that can be shattered",
+              "correct": false
+            },
+            {
+              "text": "The number of training errors made by $g$",
+              "correct": false
+            }
+          ],
+          "extend": "2D perceptron: $d_{vc}=3$; positive rays: $d_{vc}=1$.",
+          "tags": [
+            "VC dimension",
+            "shattering"
+          ]
+        },
+        {
+          "type": "open",
+          "freq": 3,
+          "sources": [
+            "L01"
+          ],
+          "q": "Explain the bias-variance decomposition and how model complexity affects each term.",
+          "answer": "The expected out-of-sample error decomposes as $E_{out} = \\text{bias} + \\text{variance}$. **Bias** measures how well the average hypothesis $\\bar g$ can approximate the target $f$ (approximation error). **Variance** measures how much individual hypotheses vary around $\\bar g$ (sensitivity to the particular dataset). A **more complex $H$** lowers bias but raises variance; a **simpler $H$** raises bias but lowers variance. The lesson: match the model complexity to the **data resources, not to the target complexity**.",
+          "extend": "Complex model: bias down, variance up.",
+          "tags": [
+            "bias-variance",
+            "overfitting"
+          ]
+        },
+        {
+          "type": "open",
+          "freq": 2,
+          "sources": [
+            "L01 S52-56"
+          ],
+          "q": "Compute the growth functions and break points for positive rays, positive intervals, and convex sets. What is the significance of a break point?",
+          "answer": "**Positive rays**: $m_H(N) = N+1$, break point $k=2$, $d_{vc}=1$. **Positive intervals**: $m_H(N) = \\tfrac{1}{2}N^2 + \\tfrac{1}{2}N + 1$, break point $k=3$, $d_{vc}=2$. **Convex sets**: $m_H(N) = 2^N$ (shatters any $N$), break point $k=\\infty$, $d_{vc}=\\infty$. A **break point** $k$ is a size no dataset of which can be shattered ($m_H(k) < 2^k$). Its key significance: any break point forces $m_H(N)$ to be **polynomial** in $N$, which makes the VC bound useful and learning feasible.",
+          "extend": "Break point exists $\\Rightarrow$ polynomial growth $\\Rightarrow$ generalization.",
+          "tags": [
+            "growth function",
+            "break point"
+          ]
+        },
+        {
+          "type": "ai",
+          "freq": 1,
+          "sources": [
+            "AI-generated"
+          ],
+          "q": "A model achieves near-zero training error but high test error. Using the two questions of learning ($E_{out}\\approx E_{in}$ and $E_{in}\\approx 0$), diagnose the problem.",
+          "answer": "Learning needs both $E_{out}(g) \\approx E_{in}(g)$ (good generalization) **and** $E_{in}(g) \\approx 0$ (fits the data). Here $E_{in}\\approx 0$ holds but $E_{out} \\gg E_{in}$, so the first condition fails. This is **overfitting**: the hypothesis set is too complex (high $d_{vc}$/variance) relative to the amount of data, so the generalization gap $\\Omega$ is large. Remedies: simpler $H$, regularization, or more data.",
+          "extend": "Small $E_{in}$ but big gap = overfitting.",
+          "tags": [
+            "overfitting",
+            "generalization"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "linear-algebra-calculus",
+      "title": "Linear Algebra & Matrix Calculus",
+      "recap": "Vectors, matrices and their operations, norms and loss functions, plus scalar/vector derivatives (gradient, Jacobian) and the chain rule form the computational backbone of ML.",
+      "questions": [
+        {
+          "type": "open",
+          "freq": 2,
+          "sources": [
+            "L01"
+          ],
+          "q": "Define the L1-norm and L2-norm of a vector, and the four properties any norm must satisfy.",
+          "answer": "For $x \\in \\mathbb{R}^n$: **L1-norm** $\\|x\\|_1 = \\sum_{i=1}^n |x_i|$; **L2-norm** $\\|x\\|_2 = \\sqrt{\\sum_{i=1}^n x_i^2}$ (note $\\|x\\|_2^2 = x^Tx$). A norm $f:\\mathbb{R}^n\\to\\mathbb{R}$ must satisfy: (1) **non-negativity** $f(x)\\ge 0$; (2) **definiteness** $f(x)=0 \\iff x=0$; (3) **homogeneity** $f(tx)=|t|f(x)$; (4) **triangle inequality** $f(x+y)\\le f(x)+f(y)$.",
+          "extend": "Non-neg, definite, homogeneous, triangle.",
+          "tags": [
+            "norm",
+            "L1",
+            "L2"
+          ]
+        },
+        {
+          "type": "open",
+          "freq": 2,
+          "sources": [
+            "L01"
+          ],
+          "q": "What is the difference between the gradient and the Jacobian matrix? Give the shape of each.",
+          "answer": "For a **scalar-valued** function $f:\\mathbb{R}^n\\to\\mathbb{R}$, the **gradient** $\\nabla_x f(x) \\in \\mathbb{R}^n$ is the vector of partial derivatives $\\partial f/\\partial x_i$ (same shape as the input). For a **vector-valued** function $f:\\mathbb{R}^n\\to\\mathbb{R}^m$, the **Jacobian** $J_f(x) \\in \\mathbb{R}^{m\\times n}$ collects all partials, with $(J_f)_{ij} = \\partial f_i/\\partial x_j$. The gradient is only defined when the function returns a scalar.",
+          "extend": "Scalar out: gradient. Vector out: Jacobian.",
+          "tags": [
+            "gradient",
+            "Jacobian"
+          ]
+        },
+        {
+          "type": "open",
+          "freq": 2,
+          "sources": [
+            "L01 exercise"
+          ],
+          "q": "For $f(x) = \\tfrac{1}{2}x^TAx + b^Tx$ with symmetric $A$, derive $\\nabla_x f(x)$ and $\\nabla_x^2 f(x)$.",
+          "answer": "Using $\\partial(b^Tx)/\\partial x = b$ and $\\partial(x^TAx)/\\partial x = 2Ax$ (for symmetric $A$): $$\\nabla_x f(x) = Ax + b, \\qquad \\nabla_x^2 f(x) = A.$$ The gradient of the quadratic term gives $Ax$ (the $\\tfrac12$ cancels the factor 2), and the Hessian is the constant matrix $A$.",
+          "extend": "Quadratic form: gradient $Ax+b$, Hessian $A$.",
+          "tags": [
+            "matrix calculus",
+            "gradient",
+            "Hessian"
+          ]
+        },
+        {
+          "type": "open",
+          "freq": 1,
+          "sources": [
+            "L01 exercise"
+          ],
+          "q": "For $f(x) = \\|Ax - b\\|_2^2$ with $A \\in \\mathbb{R}^{m\\times n}$, $b \\in \\mathbb{R}^m$, compute $\\nabla_x f(x)$.",
+          "answer": "Expand $f(x) = (Ax-b)^T(Ax-b) = x^TA^TAx - 2b^TAx + b^Tb$. Applying the quadratic-form rule ($A^TA$ is symmetric): $$\\nabla_x f(x) = 2A^TAx - 2A^Tb = 2A^T(Ax - b).$$ This is the gradient used in least-squares / linear regression.",
+          "extend": "Least squares gradient: $2A^T(Ax-b)$.",
+          "tags": [
+            "least squares",
+            "gradient"
+          ]
+        },
+        {
+          "type": "open",
+          "freq": 1,
+          "sources": [
+            "L01"
+          ],
+          "q": "State the single-variable chain rule and use it to differentiate $h(x) = \\sin(x^3)$.",
+          "answer": "Chain rule: for $h(x) = f(g(x))$, introduce $u = g(x)$; then $\\frac{dh}{dx} = \\frac{df}{du}\\cdot\\frac{du}{dx}$. For $h(x)=\\sin(x^3)$, let $u = x^3$, so $\\frac{df}{du} = \\cos(u)$ and $\\frac{du}{dx} = 3x^2$. Therefore $$\\frac{dh}{dx} = \\cos(u)\\cdot 3x^2 = 3x^2\\cos(x^3).$$",
+          "extend": "Outer'(inner) times inner'.",
+          "tags": [
+            "chain rule",
+            "derivative"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "probability",
+      "title": "Probability Theory",
+      "recap": "Random variables map outcomes to reals; PMF/PDF/CDF describe their distribution; expectation and variance summarize them. Standard distributions (Bernoulli, Binomial, Uniform, Normal) recur throughout ML.",
+      "questions": [
+        {
+          "type": "open",
+          "freq": 2,
+          "sources": [
+            "L01"
+          ],
+          "q": "Define expectation and variance of a random variable, and give the computational formula for variance.",
+          "answer": "**Expectation** is a weighted average of values: discrete $E[X] = \\sum_{x} x\\,p_X(x)$; continuous $E[X] = \\int_{-\\infty}^{\\infty} x f_X(x)\\,dx$. **Variance** measures spread around the mean: $\\text{Var}[X] = E[(X - E[X])^2] = E[X^2] - E[X]^2$. Useful properties: expectation is **linear** ($E[aX+bY]=aE[X]+bE[Y]$), and $\\text{Var}[aX+b] = a^2\\text{Var}[X]$.",
+          "extend": "$\\text{Var}[X] = E[X^2] - (E[X])^2$.",
+          "tags": [
+            "expectation",
+            "variance"
+          ]
+        },
+        {
+          "type": "open",
+          "freq": 2,
+          "sources": [
+            "L01"
+          ],
+          "q": "Compute the mean and variance of a fair six-sided die.",
+          "answer": "With $p_X(x) = 1/6$ for $x \\in \\{1,\\dots,6\\}$: $$E[X] = \\sum_{x=1}^6 x\\cdot\\tfrac16 = 3.5.$$ And $E[X^2] = \\sum x^2\\cdot\\tfrac16 = \\tfrac{91}{6} = 15.1\\overline{6}$, so $$\\text{Var}[X] = E[X^2] - E[X]^2 = 15.1\\overline{6} - 12.25 = \\tfrac{35}{12} \\approx 2.917.$$",
+          "calc": [
+            {
+              "label": "E[X]",
+              "value": 3.5,
+              "tol": 0.01
+            },
+            {
+              "label": "Var[X]",
+              "value": 2.9167,
+              "tol": 0.01
+            }
+          ],
+          "extend": "Fair die: mean 3.5, variance 35/12.",
+          "tags": [
+            "expectation",
+            "variance",
+            "calculation"
+          ]
+        },
+        {
+          "type": "mc",
+          "freq": 2,
+          "sources": [
+            "L01"
+          ],
+          "q": "Which statement about the probability density function (PDF) of a continuous random variable is correct?",
+          "answer": "The PDF is the derivative of the CDF, $f_X(x) = dF_X(x)/dx$. Its value at a point is **not** a probability; probabilities come from integrating over an interval, and $f_X(x)$ can exceed 1. It must satisfy $f_X(x)\\ge 0$ and $\\int_{-\\infty}^\\infty f_X(x)\\,dx = 1$.",
+          "options": [
+            {
+              "text": "$f_X(x)$ is the derivative of the CDF and $f_X(x) \\ne P(X=x)$",
+              "correct": true
+            },
+            {
+              "text": "$f_X(x)$ directly gives the probability $P(X=x)$",
+              "correct": false
+            },
+            {
+              "text": "$f_X(x)$ must always be $\\le 1$",
+              "correct": false
+            },
+            {
+              "text": "The CDF is the derivative of the PDF",
+              "correct": false
+            }
+          ],
+          "extend": "PDF = CDF'; area, not height, is probability.",
+          "tags": [
+            "PDF",
+            "CDF",
+            "continuous"
+          ]
+        },
+        {
+          "type": "open",
+          "freq": 1,
+          "sources": [
+            "L01 exercise"
+          ],
+          "q": "Let $X \\sim \\mathcal{N}(\\mu,\\sigma^2)$ and $Z = aX^2 + bX + c$. Determine $E[Z]$.",
+          "answer": "By linearity of expectation, $E[Z] = aE[X^2] + bE[X] + c$. Since $\\text{Var}[X] = E[X^2] - \\mu^2 = \\sigma^2$, we have $E[X^2] = \\sigma^2 + \\mu^2$. Therefore $$E[Z] = a(\\sigma^2 + \\mu^2) + b\\mu + c.$$",
+          "extend": "Turn $E[X^2]$ into $\\sigma^2+\\mu^2$.",
+          "tags": [
+            "expectation",
+            "normal distribution"
+          ]
+        },
+        {
+          "type": "ai",
+          "freq": 1,
+          "sources": [
+            "AI-generated"
+          ],
+          "q": "Give the PMF/PDF, mean and variance of the Bernoulli($p$) and Normal($\\mu,\\sigma^2$) distributions.",
+          "answer": "**Bernoulli($p$)** (discrete): $p(x) = p^x(1-p)^{1-x}$ for $x\\in\\{0,1\\}$, with $E[X]=p$ and $\\text{Var}[X]=p(1-p)$. **Normal($\\mu,\\sigma^2$)** (continuous): $f(x) = \\frac{1}{\\sigma\\sqrt{2\\pi}}e^{-\\frac{1}{2}\\left(\\frac{x-\\mu}{\\sigma}\\right)^2}$, with $E[X]=\\mu$ and $\\text{Var}[X]=\\sigma^2$.",
+          "extend": "Bernoulli variance peaks at $p=0.5$.",
+          "tags": [
+            "distributions",
+            "Bernoulli",
+            "Normal"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ss26-prediction",
+      "title": "🔮 SS26 Likely Exam Questions (predicted)",
+      "recap": "Predicted, exam-style questions in the professor's format — concept-first, plus a Keras code item where relevant. Not from a past paper; use to rehearse likely SS26 topics.",
+      "questions": [
+        {
+          "type": "open",
+          "freq": 2,
+          "sources": [
+            "SS26 predicted"
+          ],
+          "tags": [
+            "bias-variance",
+            "overfitting",
+            "model complexity",
+            "SS26 predicted"
+          ],
+          "q": "(a) Explain the **bias-variance tradeoff**. (b) Your model has **low training error but high test error** — is this a bias or a variance problem, and why? (c) Name one thing you would do to fix it, and one thing you would **not** do, and explain why.",
+          "answer": "**(a)** The expected out-of-sample error splits as $E_{out} = \\text{bias} + \\text{variance}$. **Bias** is how far the *average* hypothesis $\\bar g$ is from the target $f$ (approximation error); **variance** is how much individual fits wobble around $\\bar g$ because they depend on the particular dataset. A **more complex** model lowers bias but raises variance; a **simpler** one does the reverse.\n\n**(b)** This is a **variance** problem (**overfitting**). Low training error means bias is small — the model *can* fit — but the large gap $E_{out}\\gg E_{in}$ means it is over-sensitive to the training sample and fails to generalize.\n\n**(c)** **Would do:** reduce complexity / add **regularization** (or collect more data) to shrink variance. **Would NOT do:** make the model *more* complex (deeper/more parameters) — that lowers bias further but **raises variance**, worsening the exact problem. The lesson: match complexity to the **data resources, not the target's complexity**.",
+          "extend": "Low $E_{in}$ + big gap = high variance = overfitting; the fix is *less* capacity or more data, not more."
+        },
+        {
+          "type": "open",
+          "freq": 2,
+          "sources": [
+            "SS26 predicted"
+          ],
+          "tags": [
+            "VC dimension",
+            "generalization",
+            "Hoeffding",
+            "SS26 predicted"
+          ],
+          "q": "(a) Why is a **finite VC dimension** important for learning? (b) The 2D perceptron has $d_{vc}=3$ while convex sets have $d_{vc}=\\infty$ — what does this difference tell you about their ability to generalize?",
+          "answer": "**(a)** A finite VC dimension guarantees the **growth function $m_H(N)$ is polynomial** in $N$ (once a break point exists), so the VC generalization bound is useful: with enough data, $E_{out}\\approx E_{in}$ **regardless of the input distribution, target function, or learning algorithm**. Infinite $d_{vc}$ leaves $m_H(N)=2^N$ and the bound never becomes informative.\n\n**(b)** The perceptron's $d_{vc}=3$ means it has limited, controlled capacity, so a modest amount of data makes it generalize — its in-sample performance transfers to unseen points. **Convex sets** ($d_{vc}=\\infty$) can shatter *any* number of points; they can always fit the training data perfectly but **carry no generalization guarantee** — they overfit. More capacity = more data needed to close the generalization gap.",
+          "extend": "Finite $d_{vc}$ ⇒ polynomial growth ⇒ generalization possible; $d_{vc}=\\infty$ ⇒ can memorize, can't be trusted out-of-sample."
+        },
+        {
+          "type": "open",
+          "freq": 2,
+          "sources": [
+            "SS26 predicted"
+          ],
+          "tags": [
+            "train/validation/test",
+            "data preparation",
+            "data leakage",
+            "SS26 predicted"
+          ],
+          "q": "(a) Why do we split data into **training, validation, and test** sets — what is each used for? (b) You standardize features by fitting the scaler on the *whole* dataset before splitting. Why is this a mistake, and how would you do it correctly?",
+          "answer": "**(a)** The **training set** fits the model's parameters; the **validation set** tunes hyperparameters and drives model selection / early stopping (it detects overfitting); the **test set** is touched **only once at the very end** to give an *unbiased* estimate of generalization. If the test set influences any choice, the estimate becomes optimistically biased.\n\n**(b)** Fitting the scaler on all the data lets **test-set statistics (mean/variance) leak into training** — the model indirectly sees the test distribution, so its reported performance is too optimistic. Correct practice: **fit the scaler on the training set only**, then *apply* that fixed transform to the validation and test sets (and refit inside each fold during cross-validation).",
+          "extend": "Train = learn params · val = tune hyperparams · test = final unbiased score. Always fit preprocessing on train only — no leakage."
+        }
+      ]
+    }
+  ]
+}

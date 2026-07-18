@@ -1,0 +1,19 @@
+---
+import Layout from "../components/Layout.astro";
+import Topbar from "../components/Topbar.astro";
+import SiteFooter from "../components/SiteFooter.astro";
+import KnowledgeBase from "../components/islands/KnowledgeBase.vue";
+import { url } from "../lib/paths";
+---
+
+<Layout title="Knowledge Base · ML Exam Q&A">
+  <Topbar backHref={url("/")} backFull=" home">
+    <div class="filters" slot="filters">
+      <a class="io-btn" href={url("/review")}>📈 Review</a>
+    </div>
+  </Topbar>
+  <main class="tagpage">
+    <KnowledgeBase client:load />
+  </main>
+  <SiteFooter />
+</Layout>

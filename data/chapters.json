@@ -1,0 +1,105 @@
+{
+  "course": "Machine Learning for EDA",
+  "subtitle": "ML4EDA Exam Q&A Review",
+  "exams": [
+    "Mock",
+    "L01",
+    "L02",
+    "L03",
+    "L04",
+    "L05",
+    "L06",
+    "L07",
+    "L08",
+    "L09",
+    "L10",
+    "L11",
+    "L12"
+  ],
+  "chapters": [
+    {
+      "id": "ch01",
+      "roman": "I",
+      "title": "Preliminaries: Learning Theory & Math Basics",
+      "file": "ch01_preliminaries.json",
+      "status": "ready"
+    },
+    {
+      "id": "ch02",
+      "roman": "II",
+      "title": "Classical ML Algorithms (KNN, SVM, Trees)",
+      "file": "ch02_classical.json",
+      "status": "ready"
+    },
+    {
+      "id": "ch03",
+      "roman": "III",
+      "title": "Neural Networks I: Build & Train a Classifier",
+      "file": "ch03_nn1.json",
+      "status": "ready"
+    },
+    {
+      "id": "ch04",
+      "roman": "IV",
+      "title": "Neural Networks II: Optimizing Training",
+      "file": "ch04_nn2.json",
+      "status": "ready"
+    },
+    {
+      "id": "ch05",
+      "roman": "V",
+      "title": "Neural Networks III: Advanced Architectures",
+      "file": "ch05_nn3.json",
+      "status": "ready"
+    },
+    {
+      "id": "ch06",
+      "roman": "VI",
+      "title": "Convolutional Neural Networks",
+      "file": "ch06_cnn.json",
+      "status": "ready"
+    },
+    {
+      "id": "ch07",
+      "roman": "VII",
+      "title": "Recurrent Networks & Word Embeddings",
+      "file": "ch07_rnn.json",
+      "status": "ready"
+    },
+    {
+      "id": "ch08",
+      "roman": "VIII",
+      "title": "Language Models & Vision-Language Models",
+      "file": "ch08_lm_vlm.json",
+      "status": "ready"
+    },
+    {
+      "id": "ch09",
+      "roman": "IX",
+      "title": "GNNs & Physics-Informed Neural Networks",
+      "file": "ch09_gnn_pinn.json",
+      "status": "ready"
+    },
+    {
+      "id": "ch10",
+      "roman": "X",
+      "title": "Generative AI",
+      "file": "ch10_genai.json",
+      "status": "ready"
+    },
+    {
+      "id": "ch11",
+      "roman": "XI",
+      "title": "Reinforcement Learning",
+      "file": "ch11_rl.json",
+      "status": "ready"
+    },
+    {
+      "id": "ch12",
+      "roman": "XII",
+      "title": "ML & Agentic AI Applications in EDA",
+      "file": "ch12_eda_apps.json",
+      "status": "ready"
+    }
+  ]
+}

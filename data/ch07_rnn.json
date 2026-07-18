@@ -1,0 +1,640 @@
+{
+  "id": "ch07",
+  "roman": "VII",
+  "title": "Recurrent Networks & Word Embeddings",
+  "blurb": "★★ Secondary · Recurrent Neural Networks (RNNs) process sequences by applying the **same** recurrence at every time step, carrying a hidden state forward in time. This chapter covers the recurrence formula and sequence types, the **vanishing/exploding gradient** problem and its LSTM/GRU remedies, and **word embeddings** — dense vectors that map language into a geometric space — including building RNN and embedding models in code.",
+  "knowledge_points": [
+    {
+      "id": "rnn-recurrence-sequences",
+      "title": "Recurrence, Sequence Types & BPTT",
+      "recap": "An RNN processes a sequence of vectors by applying a **recurrence formula at every time step**: $h_t = f_W(h_{t-1}, x_t)$, with the **same function and same weights W reused at every step**. The vanilla RNN uses a single hidden vector: $h_t = \\tanh(W_{hh} h_{t-1} + W_{xh} x_t)$, optionally producing $y_t$. RNNs support flexible mappings: **one-to-many** (image captioning), **many-to-one** (sentiment classification), **many-to-many** (machine translation, video frame labeling), and **seq-to-seq** (many-to-one encoder + one-to-many decoder). Training uses **Backpropagation Through Time (BPTT)** — forward through the whole sequence, then backward — and in practice **truncated BPTT** processes chunks, carrying hidden states forward but only backpropagating a limited number of steps.",
+      "questions": [
+        {
+          "type": "mc",
+          "freq": 3,
+          "sources": [
+            "L07"
+          ],
+          "q": "What is the key property of the parameters used across time steps in an RNN?",
+          "answer": "The **same function and the same weight matrix W are reused at every time step** — the recurrence $h_t = f_W(h_{t-1}, x_t)$ shares parameters over the whole sequence.",
+          "options": [
+            {
+              "text": "The same weights W are reused at every time step",
+              "correct": true
+            },
+            {
+              "text": "Each time step learns its own independent weight matrix",
+              "correct": false
+            },
+            {
+              "text": "Weights are shared only between the first and last step",
+              "correct": false
+            },
+            {
+              "text": "The hidden state uses fixed, non-trainable weights",
+              "correct": false
+            }
+          ],
+          "tags": [
+            "recurrence",
+            "weight-sharing"
+          ]
+        },
+        {
+          "type": "open",
+          "freq": 3,
+          "sources": [
+            "L07"
+          ],
+          "q": "Write the vanilla RNN recurrence and name the four sequence-processing patterns an RNN can implement, with one example each.",
+          "answer": "**Recurrence:** the hidden state is updated as $$h_t = \\tanh(W_{hh}\\,h_{t-1} + W_{xh}\\,x_t)$$ and an output can be read off as $y_t = W_{hy}\\,h_t$.\n\n**Sequence patterns:**\n- **one-to-many**: single input -> sequence (e.g. **image captioning**).\n- **many-to-one**: sequence -> single output (e.g. **sentiment classification**).\n- **many-to-many**: sequence -> sequence (e.g. **machine translation**, or per-frame **video classification**).\n- **seq-to-seq**: a many-to-one **encoder** compressing the input into a vector followed by a one-to-many **decoder** producing the output.",
+          "tags": [
+            "recurrence",
+            "sequence-types"
+          ]
+        },
+        {
+          "type": "open",
+          "freq": 2,
+          "sources": [
+            "L07"
+          ],
+          "q": "What is **Backpropagation Through Time (BPTT)**, and why is **truncated BPTT** used in practice?",
+          "answer": "**BPTT** trains an RNN by unrolling it over the sequence: run a **full forward pass through the entire sequence to compute the loss**, then a **full backward pass** to compute gradients. For long sequences this is expensive in memory and compute and delays each update. **Truncated BPTT** instead runs forward and backward over **chunks** of the sequence: the hidden state is **carried forward in time indefinitely**, but gradients are only **backpropagated over a smaller fixed number of steps**, making training tractable while still capturing recent context.",
+          "tags": [
+            "bptt",
+            "training"
+          ]
+        },
+        {
+          "type": "ai",
+          "freq": 1,
+          "sources": [
+            "AI-generated"
+          ],
+          "q": "In a character-level language model over the vocabulary [h, e, l, o], how are characters fed in and how is text generated at test time?",
+          "answer": "Each character is fed in as a **one-hot vector**, and the RNN predicts a **softmax distribution over the next character** at each step. At test time you **sample one character from the softmax, then feed that sampled character back in as the next input**, repeating to generate text one character at a time. Training on 'hello' teaches the model to predict 'e' after 'h', 'l' after 'e', and so on.",
+          "tags": [
+            "language-model",
+            "sampling"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "vanishing-gradients-lstm",
+      "title": "Vanishing/Exploding Gradients, LSTM & GRU Gates",
+      "recap": "Backpropagating through a vanilla RNN repeatedly multiplies by $W_{hh}^T$ (and the tanh derivative). Over many steps this makes the gradient of the early hidden states depend on **many factors of W**: if the **largest singular value of W is > 1** the gradient **explodes**; if it is **< 1** the gradient **vanishes**. Exploding gradients are handled by **gradient clipping** (scale the gradient when its norm is too large); vanishing gradients require **changing the architecture**. The **LSTM** adds a cell state and four gates: **f (forget)** — whether to erase the cell; **i (input)** — whether to write to the cell; **g (gate/candidate)** — how much to write; **o (output)** — how much of the cell to reveal. The additive cell-state path gives an uninterrupted gradient flow. The **GRU** is a lighter variant with fewer gates.",
+      "questions": [
+        {
+          "type": "mc",
+          "freq": 3,
+          "sources": [
+            "L07"
+          ],
+          "q": "When repeatedly backpropagating through a vanilla RNN, what determines whether gradients vanish or explode?",
+          "answer": "The **largest singular value of the recurrent weight matrix W**: if it is **> 1** the gradients **explode**, and if it is **< 1** the gradients **vanish**, because the gradient of the early states involves many repeated factors of W.",
+          "options": [
+            {
+              "text": "Largest singular value of W > 1 -> exploding; < 1 -> vanishing",
+              "correct": true
+            },
+            {
+              "text": "The batch size chosen during training",
+              "correct": false
+            },
+            {
+              "text": "The number of output classes",
+              "correct": false
+            },
+            {
+              "text": "Whether the inputs are one-hot encoded",
+              "correct": false
+            }
+          ],
+          "tags": [
+            "vanishing-gradient",
+            "exploding-gradient"
+          ]
+        },
+        {
+          "type": "open",
+          "freq": 3,
+          "sources": [
+            "L07"
+          ],
+          "q": "Name the four gates of an LSTM and state what each controls.",
+          "answer": "- **f — Forget gate**: whether to **erase** the cell state.\n- **i — Input gate**: whether to **write** to the cell.\n- **g — Gate (candidate) gate**: **how much** to write to the cell.\n- **o — Output gate**: how much of the cell to **reveal** as the hidden state.\n\nGates f, i, o use **sigmoid** (values in [0,1] act as soft switches) and the candidate g uses **tanh**. The additive update of the cell state gives a gradient highway that mitigates vanishing gradients — the reason LSTMs handle long-term dependencies better than vanilla RNNs.",
+          "tags": [
+            "lstm",
+            "gates"
+          ]
+        },
+        {
+          "type": "mc",
+          "freq": 2,
+          "sources": [
+            "L07"
+          ],
+          "q": "Which technique specifically addresses the **exploding** gradient problem in RNNs?",
+          "answer": "**Gradient clipping** — if the gradient's norm is too large, scale it down so its norm stays within a threshold. (Vanishing gradients are instead addressed by changing the architecture, e.g. to an LSTM/GRU.)",
+          "options": [
+            {
+              "text": "Gradient clipping (scale the gradient if its norm is too big)",
+              "correct": true
+            },
+            {
+              "text": "Adding more one-hot input dimensions",
+              "correct": false
+            },
+            {
+              "text": "Increasing the softmax temperature",
+              "correct": false
+            },
+            {
+              "text": "Removing the hidden state entirely",
+              "correct": false
+            }
+          ],
+          "tags": [
+            "gradient-clipping",
+            "exploding-gradient"
+          ]
+        },
+        {
+          "type": "ai",
+          "freq": 1,
+          "sources": [
+            "AI-generated"
+          ],
+          "q": "Why does an LSTM cope with long-term dependencies better than a vanilla RNN? Mention the GRU as an alternative.",
+          "answer": "The LSTM maintains a separate **cell state** updated **additively** and gated by the forget/input gates, so gradients can flow backward through many time steps **without being repeatedly multiplied by W and squashed by tanh** — avoiding the vanishing gradient that cripples the vanilla RNN. The **GRU (Gated Recurrent Unit)** achieves a similar effect with **fewer gates** (merging cell and hidden state and combining gates), giving comparable performance with less computation.",
+          "tags": [
+            "lstm",
+            "gru"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "word-embeddings-code",
+      "title": "Word Embeddings & Building Sequence Models",
+      "recap": "A **word embedding** is a low-dimensional, **dense** floating-point vector associated with a word (typically 8-1024 dimensional), as opposed to sparse one-hot vectors. The goal is that **geometric relationships reflect semantic relationships**: synonyms map to nearby vectors and meaningful directions emerge (e.g. king - man + woman ~ queen). Embeddings can be **learned jointly** with the task (starting random, tuned by backprop) or loaded as **pre-trained** vectors (word2vec, GloVe). In Keras the **Embedding layer** is a dictionary lookup mapping integer word indices to vectors: it takes a 2D integer tensor `(samples, sequence_length)` and returns a 3D tensor `(samples, sequence_length, embedding_dim)`, which can then feed a `SimpleRNN`/`LSTM` or be flattened into Dense layers.",
+      "questions": [
+        {
+          "type": "open",
+          "freq": 3,
+          "sources": [
+            "L07"
+          ],
+          "q": "What is a **word embedding**, how does it differ from a one-hot representation, and what famous property makes it useful? Name the two ways to obtain embeddings.",
+          "answer": "A **word embedding** is a **low-dimensional dense vector** (e.g. 8-1024 dims) associated with a word, versus a high-dimensional **sparse one-hot** vector that carries no notion of similarity. Embeddings **map language into a geometric space where distance/direction reflect semantics**: synonyms land close together and meaningful directions appear — the classic example being **king - man + woman ~ queen** (also 'gender' and 'plural' vectors).\n\nTwo ways to obtain them:\n1. **Learn jointly** with the target task — start from random vectors and tune them by **backpropagation** (an `Embedding` layer).\n2. **Load pre-trained embeddings** computed on another task (e.g. **word2vec**, GloVe).",
+          "tags": [
+            "word-embeddings",
+            "word2vec"
+          ]
+        },
+        {
+          "type": "open",
+          "freq": 3,
+          "sources": [
+            "Lab07"
+          ],
+          "q": "**Fill in the blanks** to build the model (rotating variant each visit):",
+          "answer": "```python\nfrom tensorflow.keras.models import Sequential\nfrom tensorflow.keras.layers import Embedding, SimpleRNN, Dense\n\nmax_features = 10000  # vocabulary size\n\nmodel = Sequential()\nmodel.add(Embedding(max_features, 32))   # (samples, seq) -> (samples, seq, 32)\nmodel.add(SimpleRNN(32))                 # returns last hidden state (samples, 32)\nmodel.add(Dense(1, activation='sigmoid'))  # binary classification\n\nmodel.compile(optimizer='rmsprop',\n              loss='binary_crossentropy',\n              metrics=['acc'])\n```\nBy default `SimpleRNN` returns **only the last time step's output**; set `return_sequences=True` to output the full sequence (needed when stacking recurrent layers). The final **sigmoid + binary_crossentropy** matches the positive/negative review task.",
+          "extend": "The PyTorch equivalent uses `nn.Embedding` + `nn.RNN`:\n```python\nimport torch.nn as nn\n\nclass RNNClassifier(nn.Module):\n    def __init__(self, vocab=10000, emb=32, hidden=32):\n        super().__init__()\n        self.embed = nn.Embedding(vocab, emb)\n        self.rnn = nn.RNN(emb, hidden, batch_first=True)\n        self.fc = nn.Linear(hidden, 1)\n    def forward(self, x):\n        x = self.embed(x)          # (B, T, emb)\n        _, h = self.rnn(x)         # h: (1, B, hidden)\n        return self.fc(h.squeeze(0))  # logits; use BCEWithLogitsLoss\n```",
+          "tags": [
+            "keras",
+            "pytorch",
+            "build-model",
+            "rnn"
+          ],
+          "variants": [
+            {
+              "note": "Identify the layers",
+              "code": "```python\nmodel = Sequential()\nmodel.add(____(1)(max_features, 32))     # word id -> 32-dim vector\nmodel.add(____(2)(32))                    # recurrent layer (last hidden state)\nmodel.add(Dense(1, activation=____(3)))\n```",
+              "blanks": [
+                {
+                  "label": "(1)",
+                  "accept": [
+                    "Embedding",
+                    "embedding"
+                  ],
+                  "hint": "word-id -> vector layer"
+                },
+                {
+                  "label": "(2)",
+                  "accept": [
+                    "SimpleRNN",
+                    "simplernn",
+                    "LSTM",
+                    "lstm"
+                  ],
+                  "hint": "recurrent layer"
+                },
+                {
+                  "label": "(3)",
+                  "accept": [
+                    "'sigmoid'",
+                    "sigmoid"
+                  ],
+                  "hint": "binary output activation"
+                }
+              ]
+            },
+            {
+              "note": "Embedding dims + compile",
+              "code": "```python\nmodel.add(Embedding(____(1), ____(2)))    # vocab size, embedding dim\nmodel.add(SimpleRNN(32))\nmodel.add(Dense(1, activation='sigmoid'))\nmodel.compile(optimizer='rmsprop', loss=____(3), metrics=['acc'])\n```",
+              "blanks": [
+                {
+                  "label": "(1)",
+                  "accept": [
+                    "max_features",
+                    "10000"
+                  ],
+                  "hint": "vocabulary size"
+                },
+                {
+                  "label": "(2)",
+                  "accept": [
+                    "32"
+                  ],
+                  "hint": "embedding dimension"
+                },
+                {
+                  "label": "(3)",
+                  "accept": [
+                    "'binary_crossentropy'",
+                    "binary_crossentropy"
+                  ],
+                  "hint": "binary loss"
+                }
+              ]
+            },
+            {
+              "note": "Stacked recurrent layers",
+              "code": "```python\nmodel.add(Embedding(max_features, 32))\nmodel.add(SimpleRNN(32, return_sequences=____(1)))  # feed next recurrent layer\nmodel.add(SimpleRNN(32))\nmodel.add(Dense(1, activation=____(2)))\n```",
+              "blanks": [
+                {
+                  "label": "(1)",
+                  "accept": [
+                    "True",
+                    "true"
+                  ],
+                  "hint": "output full sequence to stack layers"
+                },
+                {
+                  "label": "(2)",
+                  "accept": [
+                    "'sigmoid'",
+                    "sigmoid"
+                  ],
+                  "hint": "binary output activation"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "open",
+          "freq": 2,
+          "sources": [
+            "Lab07"
+          ],
+          "q": "**Fill in the blanks** to build the model (rotating variant each visit):",
+          "answer": "```python\nfrom tensorflow.keras.models import Sequential\nfrom tensorflow.keras.layers import Embedding, Flatten, Dense\n\nmaxlen = 20\nmodel = Sequential()\nmodel.add(Embedding(10000, 8, input_length=maxlen))  # -> (samples, maxlen, 8)\nmodel.add(Flatten())                                  # -> (samples, maxlen*8)\nmodel.add(Dense(1, activation='sigmoid'))\n\nmodel.compile(optimizer='rmsprop',\n              loss='binary_crossentropy', metrics=['acc'])\n```\n`input_length=maxlen` fixes the sequence length so the 3D embedding output `(samples, maxlen, 8)` has a **known static shape** and can be **Flattened** into a fixed-size `(samples, maxlen*8)` vector for the Dense layer. Limitation: flattening then a single Dense treats each word **independently**, ignoring word order — adding recurrent or 1D-conv layers on top captures inter-word structure.",
+          "tags": [
+            "embeddings",
+            "build-model",
+            "flatten"
+          ],
+          "variants": [
+            {
+              "note": "Identify the layers",
+              "code": "```python\nmodel.add(____(1)(10000, 8, input_length=maxlen))  # -> (samples, maxlen, 8)\nmodel.add(____(2)())                                # -> (samples, maxlen*8)\nmodel.add(Dense(1, activation=____(3)))\n```",
+              "blanks": [
+                {
+                  "label": "(1)",
+                  "accept": [
+                    "Embedding",
+                    "embedding"
+                  ],
+                  "hint": "word-id -> vector layer"
+                },
+                {
+                  "label": "(2)",
+                  "accept": [
+                    "Flatten",
+                    "flatten"
+                  ],
+                  "hint": "3D -> 1D layer"
+                },
+                {
+                  "label": "(3)",
+                  "accept": [
+                    "'sigmoid'",
+                    "sigmoid"
+                  ],
+                  "hint": "binary output activation"
+                }
+              ]
+            },
+            {
+              "note": "Embedding dims + compile",
+              "code": "```python\nmodel.add(Embedding(____(1), ____(2), input_length=maxlen))\nmodel.add(Flatten())\nmodel.add(Dense(1, activation='sigmoid'))\nmodel.compile(optimizer='rmsprop', loss=____(3), metrics=['acc'])\n```",
+              "blanks": [
+                {
+                  "label": "(1)",
+                  "accept": [
+                    "10000"
+                  ],
+                  "hint": "vocabulary size"
+                },
+                {
+                  "label": "(2)",
+                  "accept": [
+                    "8"
+                  ],
+                  "hint": "embedding dimension"
+                },
+                {
+                  "label": "(3)",
+                  "accept": [
+                    "'binary_crossentropy'",
+                    "binary_crossentropy"
+                  ],
+                  "hint": "binary loss"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "open",
+          "freq": 2,
+          "sources": [
+            "Lab07"
+          ],
+          "q": "An Embedding layer maps a vocabulary of 10000 words to 32-dimensional vectors, followed by a SimpleRNN with 32 hidden units fed 32-dim inputs. Compute the number of parameters in (a) the Embedding layer and (b) the SimpleRNN layer.",
+          "answer": "**(a) Embedding:** it is a lookup table of size vocab x embedding_dim, so $10000 \\times 32 = \\mathbf{320000}$ parameters.\n\n**(b) SimpleRNN:** with input dim $D=32$ and hidden dim $H=32$, the parameters are $W_{xh}$ ($D \\times H$), $W_{hh}$ ($H \\times H$) and bias ($H$): $32\\cdot32 + 32\\cdot32 + 32 = 1024 + 1024 + 32 = \\mathbf{2080}$.",
+          "calc": [
+            {
+              "label": "Embedding params",
+              "value": 320000,
+              "tol": 0
+            },
+            {
+              "label": "SimpleRNN params",
+              "value": 2080,
+              "tol": 0
+            }
+          ],
+          "tags": [
+            "parameters",
+            "embeddings",
+            "rnn"
+          ]
+        },
+        {
+          "type": "ai",
+          "freq": 1,
+          "sources": [
+            "AI-generated"
+          ],
+          "q": "The lab also builds a 1D convnet (Conv1D + MaxPooling1D) over embedded sequences instead of an RNN. Give one advantage of this approach.",
+          "answer": "A **1D convnet** over embeddings runs **much faster** than a recurrent network (convolutions parallelize across time steps, whereas an RNN is sequential) while reaching **competitive accuracy** on word-level sentiment classification. It can also afford **larger convolution windows** (size 7 or 9) since a 1D window of size k contains only k feature vectors, making it a cheap, fast alternative to an LSTM.",
+          "tags": [
+            "conv1d",
+            "sequence-models"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "code-fill-blank",
+      "title": "✍️ Code Fill-in-the-Blank",
+      "recap": "Type the missing tokens to build an Embedding + RNN sentiment model.",
+      "questions": [
+        {
+          "type": "open",
+          "freq": 3,
+          "sources": [
+            "Lab07"
+          ],
+          "tags": [
+            "RNN",
+            "Embedding",
+            "Fill-in"
+          ],
+          "q": "**Fill in the blanks** to build the model (rotating variant each visit):",
+          "answer": "```python\nfrom tensorflow.keras.models import Sequential\nfrom tensorflow.keras.layers import Embedding, SimpleRNN, LSTM, Dense\nmodel = Sequential()\nmodel.add(Embedding(max_features, 32))\nmodel.add(LSTM(32))          # or SimpleRNN(32)\nmodel.add(Dense(1, activation='sigmoid'))\nmodel.compile(optimizer='rmsprop', loss='binary_crossentropy', metrics=['acc'])\n```",
+          "extend": "Memory: Embedding → LSTM/SimpleRNN → Dense(1, sigmoid) + binary_crossentropy.",
+          "variants": [
+            {
+              "note": "Identify layers + loss",
+              "code": "```python\nmodel.add(____(1)(max_features, 32))    # word id -> dense vector\nmodel.add(____(2)(32))                   # recurrent layer that remembers context\nmodel.add(Dense(1, activation=____(3)))\nmodel.compile(optimizer='rmsprop', loss=____(4), metrics=['acc'])\n```",
+              "blanks": [
+                {
+                  "label": "(1)",
+                  "accept": [
+                    "Embedding",
+                    "embedding"
+                  ],
+                  "hint": "word-id -> vector layer"
+                },
+                {
+                  "label": "(2)",
+                  "accept": [
+                    "LSTM",
+                    "SimpleRNN",
+                    "lstm",
+                    "simplernn"
+                  ],
+                  "hint": "recurrent layer"
+                },
+                {
+                  "label": "(3)",
+                  "accept": [
+                    "'sigmoid'",
+                    "sigmoid"
+                  ],
+                  "hint": "binary output activation"
+                },
+                {
+                  "label": "(4)",
+                  "accept": [
+                    "'binary_crossentropy'",
+                    "binary_crossentropy"
+                  ],
+                  "hint": "binary loss"
+                }
+              ]
+            },
+            {
+              "note": "Conv1D text alternative",
+              "code": "```python\nmodel.add(Embedding(max_features, 32))\nmodel.add(____(1)(32, 7, activation='relu'))   # 1-D conv over the sequence\nmodel.add(____(2)())                            # pool over time -> (samples, 32)\nmodel.add(Dense(1, activation='sigmoid'))\n```",
+              "blanks": [
+                {
+                  "label": "(1)",
+                  "accept": [
+                    "Conv1D",
+                    "conv1d"
+                  ],
+                  "hint": "1-D convolution layer"
+                },
+                {
+                  "label": "(2)",
+                  "accept": [
+                    "GlobalMaxPooling1D",
+                    "GlobalMaxPool1D",
+                    "globalmaxpooling1d",
+                    "MaxPooling1D"
+                  ],
+                  "hint": "pool over time steps"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ss26-prediction",
+      "title": "🔮 SS26 Likely Exam Questions (predicted)",
+      "recap": "Predicted, exam-style questions in the professor's format — concept-first, plus a Keras code item where relevant. Not from a past paper; use to rehearse likely SS26 topics.",
+      "questions": [
+        {
+          "type": "open",
+          "freq": 2,
+          "sources": [
+            "SS26 predicted"
+          ],
+          "tags": [
+            "vanishing-gradient",
+            "lstm",
+            "gru",
+            "SS26 predicted"
+          ],
+          "q": "(a) Why do **vanilla RNNs** suffer from vanishing/exploding gradients over long sequences?\n(b) How does an **LSTM** fix the *vanishing* case — name the gates and the mechanism.\n(c) **Name the remedy you would use for the *exploding* case, and one you would NOT** (and why).",
+          "answer": "**(a)** BPTT repeatedly multiplies the gradient by the recurrent matrix $W_{hh}^{\\!\\top}$ (and the $\\tanh$ derivative). The early-state gradient therefore carries **many repeated factors of $W$**: if the **largest singular value of $W>1$** it **explodes**, if **$<1$** it **vanishes**.\n\n**(b)** The **LSTM** adds a **cell state** updated **additively** and controlled by four gates — **f (forget)** erase the cell, **i (input)** whether to write, **g (candidate)** how much to write, **o (output)** how much to reveal. The additive cell path is a **gradient highway**: gradients flow back through many steps **without being repeatedly multiplied by $W$ and squashed**, so long-term dependencies survive. (The **GRU** does the same with fewer gates.)\n\n**(c)** *Would use:* **gradient clipping** — rescale the gradient when its norm exceeds a threshold; it directly caps explosion. *Would NOT use:* clipping is **not** a fix for *vanishing* gradients — for those you must **change the architecture** (LSTM/GRU); scaling up a vanishing gradient by clipping does nothing.",
+          "extend": "Gates f, i, o use **sigmoid** (soft 0/1 switches); candidate g uses **tanh**. GRU merges cell and hidden state and combines gates."
+        },
+        {
+          "type": "open",
+          "freq": 2,
+          "sources": [
+            "SS26 predicted"
+          ],
+          "tags": [
+            "word-embeddings",
+            "word2vec",
+            "SS26 predicted"
+          ],
+          "q": "(a) What is a **word embedding** and how does it differ from a **one-hot** vector?\n(b) What benefit does an embedding offer that one-hot encoding cannot, with a classic example?\n(c) **Name the two ways to obtain embeddings**, and say when you would prefer each.",
+          "answer": "**(a)** A **word embedding** is a **low-dimensional dense** float vector (typically 8–1024 dims) per word; a **one-hot** vector is huge (vocabulary-sized), **sparse**, and every pair is equidistant, so it encodes **no similarity**.\n\n**(b)** Embeddings map words into a **geometric space where distance and direction reflect meaning** — synonyms land close together and meaningful directions emerge, the classic example being $\\text{king}-\\text{man}+\\text{woman}\\approx\\text{queen}$. One-hot vectors cannot express any such relationship.\n\n**(c)** (1) **Learn jointly** with the task via a trainable **Embedding layer** (start random, tune by backprop) — preferred when you have **enough task data**. (2) **Load pre-trained** vectors such as **word2vec** or **GloVe** — preferred when your **dataset is small**, since the semantics were learned on a large external corpus.",
+          "extend": "In Keras the `Embedding` layer is a lookup table of shape (vocab × embedding_dim): it maps `(samples, seq_len)` integers to `(samples, seq_len, embedding_dim)`."
+        },
+        {
+          "type": "open",
+          "freq": 2,
+          "sources": [
+            "SS26 predicted"
+          ],
+          "tags": [
+            "code",
+            "keras",
+            "build-model",
+            "lstm",
+            "SS26 predicted"
+          ],
+          "q": "**Fill in the blanks** for the Embedding + LSTM sentiment model (rotating variant each visit):",
+          "answer": "```python\nfrom tensorflow.keras.models import Sequential\nfrom tensorflow.keras.layers import Embedding, LSTM, Dense\n\nmax_features = 10000\n\nmodel = Sequential()\nmodel.add(Embedding(max_features, 32))     # (samples, seq) -> (samples, seq, 32)\nmodel.add(LSTM(32))                        # long-range context, avoids vanishing grad\nmodel.add(Dense(1, activation='sigmoid'))  # binary sentiment\n\nmodel.compile(optimizer='rmsprop',\n              loss='binary_crossentropy',\n              metrics=['acc'])\n\nmodel.fit(x_train, y_train,\n          epochs=10, batch_size=128,\n          validation_data=(x_val, y_val))\n\nloss, acc = model.evaluate(x_test, y_test)\nprint('test acc:', acc)\n```\nKey points: **Embedding → LSTM → Dense(1, sigmoid)**, **binary_crossentropy** loss, **validation_data** in `fit`, **evaluate on the test set**. Chose **LSTM over SimpleRNN** because its gated cell state mitigates the **vanishing gradient**, capturing longer-range dependencies. To stack recurrent layers, set `return_sequences=True` on all but the last.",
+          "extend": "A cheaper alternative is a **Conv1D + MaxPooling1D** stack over the embeddings — it parallelizes across time (much faster than an RNN) with competitive accuracy.",
+          "variants": [
+            {
+              "note": "Identify the layers",
+              "code": "```python\nmodel.add(____(1)(max_features, 32))     # embed words into 32 dims\nmodel.add(____(2)(32))                    # long-range context\nmodel.add(Dense(1, activation=____(3)))\n```",
+              "blanks": [
+                {
+                  "label": "(1)",
+                  "accept": [
+                    "Embedding",
+                    "embedding"
+                  ],
+                  "hint": "word-id -> vector layer"
+                },
+                {
+                  "label": "(2)",
+                  "accept": [
+                    "LSTM",
+                    "lstm"
+                  ],
+                  "hint": "gated recurrent layer"
+                },
+                {
+                  "label": "(3)",
+                  "accept": [
+                    "'sigmoid'",
+                    "sigmoid"
+                  ],
+                  "hint": "binary output activation"
+                }
+              ]
+            },
+            {
+              "note": "Compile / fit / evaluate",
+              "code": "```python\nmodel.compile(optimizer='rmsprop', loss=____(1), metrics=['acc'])\nmodel.fit(x_train, y_train, epochs=10, batch_size=128,\n          validation_data=(____(2), y_val))\nloss, acc = model.____(3)(x_test, y_test)\n```",
+              "blanks": [
+                {
+                  "label": "(1)",
+                  "accept": [
+                    "'binary_crossentropy'",
+                    "binary_crossentropy"
+                  ],
+                  "hint": "binary loss"
+                },
+                {
+                  "label": "(2)",
+                  "accept": [
+                    "x_val",
+                    "X_val"
+                  ],
+                  "hint": "validation inputs"
+                },
+                {
+                  "label": "(3)",
+                  "accept": [
+                    "evaluate"
+                  ],
+                  "hint": "test-set scoring method"
+                }
+              ]
+            },
+            {
+              "note": "Stacked LSTMs",
+              "code": "```python\nmodel.add(Embedding(max_features, 32))\nmodel.add(LSTM(32, return_sequences=____(1)))  # feed next recurrent layer\nmodel.add(____(2)(32))\nmodel.add(Dense(1, activation='sigmoid'))\n```",
+              "blanks": [
+                {
+                  "label": "(1)",
+                  "accept": [
+                    "True",
+                    "true"
+                  ],
+                  "hint": "output full sequence to stack layers"
+                },
+                {
+                  "label": "(2)",
+                  "accept": [
+                    "LSTM",
+                    "lstm"
+                  ],
+                  "hint": "second recurrent layer"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

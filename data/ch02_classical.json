@@ -1,0 +1,696 @@
+{
+  "id": "ch02",
+  "roman": "II",
+  "title": "Classical ML Algorithms (KNN, SVM, Trees)",
+  "blurb": "★★★ Core / must-know · Foundational classifiers taught in the data-driven approach: K-Nearest Neighbors (non-parametric), linear classifiers with Multiclass SVM (hinge) and Softmax losses, and Decision Trees and Random Forests based on information gain and ensembling.",
+  "knowledge_points": [
+    {
+      "id": "exam-knn",
+      "title": "⭐ Mock Exam: KNN",
+      "recap": "KNN is a favorite concept question: how it is 'trained' (lazy — just store data), how it is tested (distance → K nearest → majority vote), and how to choose K (validation/cross-validation + bias-variance trade-off).",
+      "questions": [
+        {
+          "type": "open",
+          "freq": 3,
+          "sources": [
+            "Mock Q4"
+          ],
+          "tags": [
+            "KNN",
+            "Lazy learning",
+            "Bias-variance",
+            "Cross-validation"
+          ],
+          "q": "(a) How is the **K-Nearest Neighbor** algorithm trained?\n(b) How is it tested?\n(c) How would you identify the right number of neighbors **K**?",
+          "answer": "**(a) Training:** KNN is a **lazy learner** — there is essentially **no training phase**; 'training' just **stores** the training feature vectors and their labels.\n\n**(b) Testing** a new point: compute its **distance** (e.g. Euclidean) to all training points, find the **K nearest** neighbors, then **majority vote** over their labels (optionally distance-weighted); for regression, average the neighbors' targets.\n\n**(c) Choosing K:** use a **validation set or cross-validation** — try $K=1,2,\\dots,20$, measure validation performance, pick the best. Trade-off: **small K** → low bias, high variance (noise-sensitive); **large K** → smoother boundary, higher bias, may underfit.",
+          "extend": "Memory: KNN 'trains' by memorizing; test = distance→K nearest→vote; pick K by CV (bias-variance)."
+        }
+      ]
+    },
+    {
+      "id": "knn",
+      "title": "K-Nearest Neighbors & Hyperparameter Search",
+      "recap": "KNN is a non-parametric, memory-based classifier that predicts a test point's label by majority vote among its K nearest training points. K and the distance metric are hyperparameters chosen via a validation set or cross-validation.",
+      "questions": [
+        {
+          "type": "open",
+          "freq": 3,
+          "sources": [
+            "L02"
+          ],
+          "q": "Explain how the K-Nearest Neighbors classifier works and why it is called non-parametric.",
+          "answer": "KNN **memorizes all training data and labels**. To classify a test point, it finds the **K closest training points** (by a distance metric) and takes a **majority vote** of their labels. It is **non-parametric** because it makes no assumption about the underlying data distribution and learns no parameters/weights: there is essentially no training step; all computation happens at prediction time. With $K=1$ it copies the label of the single nearest neighbor; larger $K$ smooths decision boundaries.",
+          "extend": "Memorize, then majority-vote the K nearest.",
+          "tags": [
+            "KNN",
+            "non-parametric"
+          ]
+        },
+        {
+          "type": "open",
+          "freq": 3,
+          "sources": [
+            "L02 S23"
+          ],
+          "q": "Give the formulas for the L1 (Manhattan) and L2 (Euclidean) distances used in KNN, and name the two hyperparameters.",
+          "answer": "For points $p$ and $q$: **L1 (Manhattan)** $d_1(p,q) = \\sum_i |p_i - q_i|$; **L2 (Euclidean)** $d_2(p,q) = \\sqrt{\\sum_i (p_i - q_i)^2}$. The two **hyperparameters** are the value of **K** and the choice of **distance metric**. Both are problem-dependent and are set (not learned) using a validation set.",
+          "extend": "L1 = sum of |diffs|; L2 = sqrt of sum of squares.",
+          "tags": [
+            "distance metric",
+            "L1",
+            "L2",
+            "hyperparameters"
+          ]
+        },
+        {
+          "type": "mc",
+          "freq": 3,
+          "sources": [
+            "L02 S27-34"
+          ],
+          "q": "Why should hyperparameters (like K) be chosen on a validation set rather than on the training or test set?",
+          "answer": "Choosing on the **training set** is bad because it always favors the model that memorizes (e.g. $K=1$ gives perfect training accuracy). Choosing on the **test set** is bad because you then have no unbiased estimate of performance on new data. A separate **validation set** (or cross-validation) is used to tune hyperparameters, and the **test set is used only once at the very end**.",
+          "options": [
+            {
+              "text": "Tuning on training data always favors trivial memorization; tuning on test data destroys the unbiased final estimate",
+              "correct": true
+            },
+            {
+              "text": "The validation set is always larger than the training set",
+              "correct": false
+            },
+            {
+              "text": "Hyperparameters cannot be evaluated on training data at all",
+              "correct": false
+            },
+            {
+              "text": "The test set must be used repeatedly during tuning",
+              "correct": false
+            }
+          ],
+          "extend": "Touch the test set exactly once.",
+          "tags": [
+            "validation",
+            "hyperparameters",
+            "cross-validation"
+          ]
+        },
+        {
+          "type": "open",
+          "freq": 2,
+          "sources": [
+            "L02 S32-36"
+          ],
+          "q": "Explain K-Folds cross-validation and two drawbacks of KNN on images (curse of dimensionality).",
+          "answer": "**K-Folds cross-validation** splits the training data into K folds; each fold serves once as the validation set while the rest train the model, and results are **averaged**. It is useful for **small datasets**. KNN on images is never used because: (1) it is **very slow at test time** (must compare against all stored points); (2) **distance metrics on raw pixels are not informative** (boxed/shifted/tinted images can have identical L2 distance); and (3) the **curse of dimensionality** — the number of points needed to densely cover the space grows exponentially with dimension.",
+          "extend": "High dimensions need exponentially more data.",
+          "tags": [
+            "cross-validation",
+            "curse of dimensionality"
+          ]
+        },
+        {
+          "type": "open",
+          "freq": 3,
+          "sources": [
+            "Lab02"
+          ],
+          "q": "**Fill in the blanks** to standardize features, fit a KNN classifier and evaluate it (a rotating variant each visit):",
+          "answer": "```python\nimport numpy as np\nfrom sklearn.model_selection import train_test_split\nfrom sklearn.preprocessing import StandardScaler\nfrom sklearn.neighbors import KNeighborsClassifier\nfrom sklearn.metrics import confusion_matrix, accuracy_score, classification_report\n\n# 1. Train/test split\nX_train, X_test, y_train, y_test = train_test_split(\n    df.drop('TARGET CLASS', axis=1), df['TARGET CLASS'], test_size=0.30)\n\n# 2. Standardize (fit on train only, then transform both)\nscaler = StandardScaler()\nscaler.fit(X_train)\nX_train = scaler.transform(X_train)\nX_test = scaler.transform(X_test)\n\n# 3. Fit KNN\nknn = KNeighborsClassifier(n_neighbors=1)\nknn.fit(X_train, y_train)\n\n# 4. Predict and evaluate\npred = knn.predict(X_test)\nprint(confusion_matrix(y_test, pred))\nprint('Test accuracy:', accuracy_score(y_test, pred))\nprint(classification_report(y_test, pred))\n```\n**StandardScaler** removes the mean and scales to unit variance — important for distance-based methods like KNN. The scaler is fit on the training set only to avoid data leakage.",
+          "extend": "Scale before KNN; fit scaler on train only.",
+          "tags": [
+            "code",
+            "sklearn",
+            "KNN",
+            "StandardScaler"
+          ],
+          "variants": [
+            {
+              "note": "scaler & classifier",
+              "code": "```python\nscaler = ____(1)()\nscaler.fit(X_train)\nX_train = scaler.transform(X_train)\nX_test  = scaler.transform(X_test)\nknn = ____(2)(n_neighbors=1)\nknn.fit(X_train, y_train)\n```",
+              "blanks": [
+                {
+                  "label": "(1)",
+                  "accept": [
+                    "StandardScaler",
+                    "standardscaler"
+                  ],
+                  "hint": "zero-mean/unit-var scaler"
+                },
+                {
+                  "label": "(2)",
+                  "accept": [
+                    "KNeighborsClassifier",
+                    "kneighborsclassifier"
+                  ],
+                  "hint": "the KNN estimator"
+                }
+              ]
+            },
+            {
+              "note": "fit / predict / metric",
+              "code": "```python\nknn = KNeighborsClassifier(n_neighbors=____(1))\nknn.fit(X_train, y_train)\npred = knn.____(2)(X_test)\nprint(accuracy_score(y_test, pred))\n```",
+              "blanks": [
+                {
+                  "label": "(1)",
+                  "accept": [
+                    "1"
+                  ],
+                  "hint": "K for the first fit"
+                },
+                {
+                  "label": "(2)",
+                  "accept": [
+                    "predict"
+                  ],
+                  "hint": "produce labels"
+                }
+              ]
+            },
+            {
+              "note": "split & fit-on-train",
+              "code": "```python\nX_train, X_test, y_train, y_test = ____(1)(\n    df.drop('TARGET CLASS', axis=1), df['TARGET CLASS'], test_size=0.30)\nscaler = StandardScaler()\nscaler.____(2)(X_train)          # fit on TRAIN only (no leakage)\nX_train = scaler.transform(X_train)\n```",
+              "blanks": [
+                {
+                  "label": "(1)",
+                  "accept": [
+                    "train_test_split"
+                  ],
+                  "hint": "sklearn split helper"
+                },
+                {
+                  "label": "(2)",
+                  "accept": [
+                    "fit"
+                  ],
+                  "hint": "learn mean/var on train"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "open",
+          "freq": 2,
+          "sources": [
+            "Lab02"
+          ],
+          "q": "**Fill in the blanks** to pick the best K for KNN by tracking the error rate (a rotating variant each visit):",
+          "answer": "```python\nimport numpy as np\nfrom sklearn.neighbors import KNeighborsClassifier\n\nerror_rate = []\nfor i in range(1, 40):\n    knn = KNeighborsClassifier(n_neighbors=i)\n    knn.fit(X_train, y_train)\n    pred_i = knn.predict(X_test)\n    error_rate.append(np.mean(pred_i != y_test))\n\n# Best K = index of minimum error (+1 because range starts at 1)\nK = np.argmin(error_rate) + 1\nprint('Best K =', K)\n\n# Retrain with the best K\nknn = KNeighborsClassifier(n_neighbors=K)\nknn.fit(X_train, y_train)\npred = knn.predict(X_test)\n```\nPlotting error rate vs. K (the 'elbow' method) reveals the K that best balances bias and variance.",
+          "extend": "argmin(error) + 1 gives best K.",
+          "tags": [
+            "code",
+            "sklearn",
+            "hyperparameter tuning"
+          ],
+          "variants": [
+            {
+              "note": "loop & error rate",
+              "code": "```python\nerror_rate = []\nfor i in range(1, 40):\n    knn = KNeighborsClassifier(n_neighbors=____(1))\n    knn.fit(X_train, y_train)\n    pred_i = knn.predict(X_test)\n    error_rate.append(np.____(2)(pred_i != y_test))\n```",
+              "blanks": [
+                {
+                  "label": "(1)",
+                  "accept": [
+                    "i"
+                  ],
+                  "hint": "the loop variable"
+                },
+                {
+                  "label": "(2)",
+                  "accept": [
+                    "mean"
+                  ],
+                  "hint": "fraction misclassified"
+                }
+              ]
+            },
+            {
+              "note": "argmin",
+              "code": "```python\nK = np.____(1)(error_rate) + ____(2)   # +offset: range starts at 1\nknn = KNeighborsClassifier(n_neighbors=K)\nknn.fit(X_train, y_train)\n```",
+              "blanks": [
+                {
+                  "label": "(1)",
+                  "accept": [
+                    "argmin"
+                  ],
+                  "hint": "index of minimum error"
+                },
+                {
+                  "label": "(2)",
+                  "accept": [
+                    "1"
+                  ],
+                  "hint": "because range starts at 1"
+                }
+              ]
+            },
+            {
+              "note": "refit & predict",
+              "code": "```python\nknn = KNeighborsClassifier(n_neighbors=K)\nknn.____(1)(X_train, y_train)\npred = knn.____(2)(X_test)\n```",
+              "blanks": [
+                {
+                  "label": "(1)",
+                  "accept": [
+                    "fit"
+                  ],
+                  "hint": "train the final model"
+                },
+                {
+                  "label": "(2)",
+                  "accept": [
+                    "predict"
+                  ],
+                  "hint": "get test labels"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "linear-svm-softmax",
+      "title": "Linear Classifiers: SVM (Hinge) & Softmax Loss",
+      "recap": "A linear classifier computes scores $f(x,W) = Wx + b$. A loss function quantifies how bad the scores are: Multiclass SVM uses hinge loss (margin-based), Softmax uses cross-entropy on normalized probabilities. Regularization prevents overfitting.",
+      "questions": [
+        {
+          "type": "open",
+          "freq": 3,
+          "sources": [
+            "L02 S43-49"
+          ],
+          "q": "Describe the parametric linear classifier $f(x,W) = Wx + b$ and the three viewpoints for interpreting it.",
+          "answer": "A **linear classifier** stretches the input image into a column vector $x$ and computes class scores $f(x,W) = Wx + b$, where $W$ is the weight matrix and $b$ the bias. For CIFAR-10, $x \\in \\mathbb{R}^{3072}$, $W \\in \\mathbb{R}^{10\\times 3072}$, giving 10 class scores. Three viewpoints: (1) **Algebraic** — a matrix multiply $Wx+b$; (2) **Visual** — each row of $W$ is a learned **template** per class; (3) **Geometric** — the classifier draws **hyperplanes cutting up the space** into class regions.",
+          "extend": "One row of W = one class template = one hyperplane.",
+          "tags": [
+            "linear classifier",
+            "parametric"
+          ]
+        },
+        {
+          "type": "open",
+          "freq": 3,
+          "sources": [
+            "L02 S56-62"
+          ],
+          "q": "Write the Multiclass SVM (hinge) loss and explain the role of the margin.",
+          "answer": "For an example with scores $s = f(x_i, W)$ and correct label $y_i$, the **Multiclass SVM loss** is $$L_i = \\sum_{j \\ne y_i} \\max(0,\\; s_j - s_{y_i} + 1).$$ It is a **hinge loss**: it incurs zero cost as long as the correct-class score exceeds every wrong-class score by at least the **margin** of 1; otherwise it charges the shortfall linearly. The full-dataset loss is the average $L = \\frac{1}{N}\\sum_i L_i$. Minimum loss is 0 (all margins satisfied); maximum is unbounded.",
+          "extend": "Hinge = max(0, wrong - correct + margin).",
+          "tags": [
+            "SVM",
+            "hinge loss",
+            "margin"
+          ]
+        },
+        {
+          "type": "open",
+          "freq": 2,
+          "sources": [
+            "L02 S59-62"
+          ],
+          "q": "Given scores cat=3.2, car=5.1, frog=-1.7 for an image whose correct class is 'cat', compute the Multiclass SVM loss (margin = 1).",
+          "answer": "The correct score is $s_{y_i} = 3.2$. Sum the hinge over the other classes: $$L = \\max(0, 5.1 - 3.2 + 1) + \\max(0, -1.7 - 3.2 + 1)$$ $$= \\max(0, 2.9) + \\max(0, -3.9) = 2.9 + 0 = 2.9.$$",
+          "calc": [
+            {
+              "label": "SVM loss",
+              "value": 2.9,
+              "tol": 0.01
+            }
+          ],
+          "extend": "Only violated margins add to the loss.",
+          "tags": [
+            "SVM",
+            "hinge loss",
+            "calculation"
+          ]
+        },
+        {
+          "type": "mc",
+          "freq": 3,
+          "sources": [
+            "L02 S73-79"
+          ],
+          "q": "What is the purpose of adding a regularization term (e.g. L2) to the loss function?",
+          "answer": "The total loss is **data loss + $\\lambda\\cdot$ regularization**, where $\\lambda$ is the regularization strength. Regularization **prevents the model from doing too well on the training data** (overfitting): it expresses a preference for simpler weights, helps the model generalize to test data, and can improve optimization by adding curvature. Note that the SVM loss alone is not enough to pick a unique $W$ — if $L=0$ for some $W$, then $2W$ also gives $L=0$; regularization breaks this ambiguity.",
+          "options": [
+            {
+              "text": "To prevent overfitting by preferring simpler weights and improving generalization",
+              "correct": true
+            },
+            {
+              "text": "To make the training accuracy as high as possible",
+              "correct": false
+            },
+            {
+              "text": "To guarantee the loss reaches exactly zero",
+              "correct": false
+            },
+            {
+              "text": "To remove the need for a validation set",
+              "correct": false
+            }
+          ],
+          "extend": "L2 reg: simple weights generalize better.",
+          "tags": [
+            "regularization",
+            "overfitting",
+            "L2"
+          ]
+        },
+        {
+          "type": "open",
+          "freq": 3,
+          "sources": [
+            "L02 S93-101"
+          ],
+          "q": "Contrast the Softmax classifier with the Multiclass SVM. How does Softmax turn scores into a loss?",
+          "answer": "The **Softmax** classifier (multinomial logistic regression) interprets scores as **unnormalized log-probabilities (logits)**. It exponentiates and normalizes: $P(y=k\\,|\\,x) = \\frac{e^{s_k}}{\\sum_j e^{s_j}}$ so probabilities are $\\ge 0$ and sum to 1. The loss is the **cross-entropy** $L_i = -\\log P(y_i\\,|\\,x_i)$. Key difference: the **SVM (hinge) loss saturates** — once margins are satisfied it stops caring about the exact scores — whereas **Softmax always wants to push the correct probability toward 1**, so it keeps improving scores even when classification is already correct.",
+          "extend": "SVM stops at the margin; Softmax never fully satisfied.",
+          "tags": [
+            "Softmax",
+            "cross-entropy",
+            "SVM"
+          ]
+        },
+        {
+          "type": "open",
+          "freq": 3,
+          "sources": [
+            "Lab02"
+          ],
+          "q": "**Fill in the blanks** to fit an SVM and tune C/gamma with GridSearchCV (a rotating variant each visit):",
+          "answer": "```python\nfrom sklearn.svm import SVC\nfrom sklearn.model_selection import GridSearchCV\nfrom sklearn.metrics import classification_report, confusion_matrix\n\n# Baseline SVM\nsvc_model = SVC()\nsvc_model.fit(X_train, y_train)\npredictions = svc_model.predict(X_test)\n\n# Tune hyperparameters with grid search\nparam_grid = {'C': [0.1, 1, 10, 100], 'gamma': [1, 0.1, 0.01, 0.001]}\ngrid = GridSearchCV(SVC(), param_grid, refit=True, verbose=1)\ngrid.fit(X_train, y_train)\nprint(grid.best_estimator_)\n\ngrid_pred = grid.predict(X_test)\nprint(confusion_matrix(y_test, grid_pred))\nprint(classification_report(y_test, grid_pred))\n```\n**C** controls the soft-margin penalty (trading training error for margin width / stability); **gamma** is the RBF-kernel width for non-linear boundaries. The `kernel` can also be tuned (`'linear'`, `'poly'`, `'rbf'`, `'sigmoid'`).",
+          "extend": "C = soft-margin penalty; gamma = RBF width.",
+          "tags": [
+            "code",
+            "sklearn",
+            "SVM",
+            "GridSearchCV"
+          ],
+          "variants": [
+            {
+              "note": "estimator & search",
+              "code": "```python\nsvc_model = ____(1)()\nsvc_model.fit(X_train, y_train)\nparam_grid = {'C': [0.1, 1, 10, 100], 'gamma': [1, 0.1, 0.01, 0.001]}\ngrid = ____(2)(SVC(), param_grid, refit=True, verbose=1)\ngrid.fit(X_train, y_train)\n```",
+              "blanks": [
+                {
+                  "label": "(1)",
+                  "accept": [
+                    "SVC",
+                    "svc"
+                  ],
+                  "hint": "support-vector classifier"
+                },
+                {
+                  "label": "(2)",
+                  "accept": [
+                    "GridSearchCV",
+                    "gridsearchcv"
+                  ],
+                  "hint": "exhaustive CV search"
+                }
+              ]
+            },
+            {
+              "note": "hyperparameter keys",
+              "code": "```python\nparam_grid = {'____(1)': [0.1, 1, 10, 100], '____(2)': [1, 0.1, 0.01, 0.001]}\ngrid = GridSearchCV(SVC(), param_grid, refit=True, verbose=1)\ngrid.fit(X_train, y_train)\nprint(grid.____(3))\n```",
+              "blanks": [
+                {
+                  "label": "(1)",
+                  "accept": [
+                    "C",
+                    "'C'"
+                  ],
+                  "hint": "soft-margin penalty"
+                },
+                {
+                  "label": "(2)",
+                  "accept": [
+                    "gamma",
+                    "'gamma'"
+                  ],
+                  "hint": "RBF kernel width"
+                },
+                {
+                  "label": "(3)",
+                  "accept": [
+                    "best_estimator_"
+                  ],
+                  "hint": "best model found"
+                }
+              ]
+            },
+            {
+              "note": "fit & predict",
+              "code": "```python\ngrid = GridSearchCV(SVC(), param_grid, refit=True, verbose=1)\ngrid.____(1)(X_train, y_train)\ngrid_pred = grid.____(2)(X_test)\nprint(confusion_matrix(y_test, grid_pred))\n```",
+              "blanks": [
+                {
+                  "label": "(1)",
+                  "accept": [
+                    "fit"
+                  ],
+                  "hint": "run the search"
+                },
+                {
+                  "label": "(2)",
+                  "accept": [
+                    "predict"
+                  ],
+                  "hint": "use the best estimator"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "trees-forests",
+      "title": "Decision Trees & Random Forests",
+      "recap": "Decision trees split data at nodes chosen to maximize information gain (entropy reduction). Random Forests reduce variance by ensembling many randomized trees and voting/averaging their predictions.",
+      "questions": [
+        {
+          "type": "open",
+          "freq": 3,
+          "sources": [
+            "L02 S110-112"
+          ],
+          "q": "How does a decision tree choose which attribute to split on? Define entropy and information gain.",
+          "answer": "For a training set with $p$ positive and $n$ negative examples, the **entropy** is $$H\\!\\left(\\tfrac{p}{p+n}, \\tfrac{n}{p+n}\\right) = -\\tfrac{p}{p+n}\\log_2\\tfrac{p}{p+n} - \\tfrac{n}{p+n}\\log_2\\tfrac{n}{p+n}.$$ An attribute $A$ with $K$ values splits $E$ into subsets $E_1,\\dots,E_K$; the **expected remaining entropy** is $EH(A) = \\sum_{i=1}^{K}\\frac{p_i+n_i}{p+n}H\\!\\left(\\frac{p_i}{p_i+n_i}, \\frac{n_i}{p_i+n_i}\\right)$. The **information gain** is the reduction in entropy $I(A) = H(\\ldots) - EH(A)$. The tree **chooses the attribute with the largest information gain**.",
+          "extend": "Split on the attribute that reduces entropy most.",
+          "tags": [
+            "decision tree",
+            "entropy",
+            "information gain"
+          ]
+        },
+        {
+          "type": "open",
+          "freq": 2,
+          "sources": [
+            "L02 S112"
+          ],
+          "q": "For a training set with p = n = 6 (12 examples), the entropy is H(6/12, 6/12) = 1 bit. An attribute 'Patrons' splits it into groups with entropies giving expected entropy EH = 0.459 bits. What is the information gain?",
+          "answer": "Information gain is $I = H - EH = 1 - 0.459 \\approx 0.541$ bits. (In the lecture example $I(\\text{Patrons}) \\approx 0.541$ bits, whereas $I(\\text{Type}) = 0$ bits, so 'Patrons' is the far better split.) A gain near the root entropy means the attribute is highly informative; a gain of 0 means the split does not reduce uncertainty at all.",
+          "calc": [
+            {
+              "label": "Information gain (bits)",
+              "value": 0.541,
+              "tol": 0.01
+            }
+          ],
+          "extend": "Gain = parent entropy minus weighted child entropy.",
+          "tags": [
+            "information gain",
+            "entropy",
+            "calculation"
+          ]
+        },
+        {
+          "type": "mc",
+          "freq": 3,
+          "sources": [
+            "L02 S124-125"
+          ],
+          "q": "How does a Random Forest improve over a single decision tree?",
+          "answer": "A **Random Forest** builds an **ensemble** of many randomized decision trees and outputs the **majority vote** (classification) or **mean/average** (regression) of the individual trees. Randomization (bootstrap samples of the data and random attribute subsets per split) makes the trees diverse, so averaging them **reduces variance** without much increase in bias — directly addressing the tendency of single deep trees to overfit.",
+          "options": [
+            {
+              "text": "It ensembles many randomized trees and votes/averages them, reducing variance",
+              "correct": true
+            },
+            {
+              "text": "It builds one very deep tree to eliminate bias",
+              "correct": false
+            },
+            {
+              "text": "It replaces entropy with the Euclidean distance",
+              "correct": false
+            },
+            {
+              "text": "It removes the need for training data",
+              "correct": false
+            }
+          ],
+          "extend": "Many diverse trees + voting = lower variance.",
+          "tags": [
+            "random forest",
+            "ensemble",
+            "bias-variance"
+          ]
+        },
+        {
+          "type": "open",
+          "freq": 3,
+          "sources": [
+            "Lab02"
+          ],
+          "q": "**Fill in the blanks** to train a Decision Tree and a Random Forest, then evaluate (a rotating variant each visit):",
+          "answer": "```python\nfrom sklearn.tree import DecisionTreeClassifier\nfrom sklearn.ensemble import RandomForestClassifier\nfrom sklearn.metrics import classification_report, confusion_matrix, accuracy_score\n\n# Single decision tree\ndtree = DecisionTreeClassifier()\ndtree.fit(X_train, y_train)\ndtree_pred = dtree.predict(X_test)\nprint('Tree accuracy:', accuracy_score(y_test, dtree_pred))\n\n# Random forest (ensemble of 600 trees)\nrfc = RandomForestClassifier(n_estimators=600)\nrfc.fit(X_train, y_train)\nrfc_pred = rfc.predict(X_test)\nprint('Forest accuracy:', accuracy_score(y_test, rfc_pred))\nprint(confusion_matrix(y_test, rfc_pred))\nprint(classification_report(y_test, rfc_pred))\n```\n`n_estimators` sets the number of trees; more trees generally lower variance at higher compute cost. `max_depth` and `n_estimators` are commonly tuned with GridSearchCV.",
+          "extend": "n_estimators = number of trees in the forest.",
+          "tags": [
+            "code",
+            "sklearn",
+            "decision tree",
+            "random forest"
+          ],
+          "variants": [
+            {
+              "note": "classifier types",
+              "code": "```python\ndtree = ____(1)()\ndtree.fit(X_train, y_train)\nrfc = ____(2)(n_estimators=600)\nrfc.fit(X_train, y_train)\n```",
+              "blanks": [
+                {
+                  "label": "(1)",
+                  "accept": [
+                    "DecisionTreeClassifier",
+                    "decisiontreeclassifier"
+                  ],
+                  "hint": "single tree"
+                },
+                {
+                  "label": "(2)",
+                  "accept": [
+                    "RandomForestClassifier",
+                    "randomforestclassifier"
+                  ],
+                  "hint": "tree ensemble"
+                }
+              ]
+            },
+            {
+              "note": "hyperparameter & predict",
+              "code": "```python\nrfc = RandomForestClassifier(____(1)=600)\nrfc.fit(X_train, y_train)\nrfc_pred = rfc.____(2)(X_test)\nprint(accuracy_score(y_test, rfc_pred))\n```",
+              "blanks": [
+                {
+                  "label": "(1)",
+                  "accept": [
+                    "n_estimators"
+                  ],
+                  "hint": "number of trees"
+                },
+                {
+                  "label": "(2)",
+                  "accept": [
+                    "predict"
+                  ],
+                  "hint": "vote over trees"
+                }
+              ]
+            },
+            {
+              "note": "fit & metric",
+              "code": "```python\ndtree = DecisionTreeClassifier()\ndtree.____(1)(X_train, y_train)\ndtree_pred = dtree.predict(X_test)\nprint(____(2)(y_test, dtree_pred))\n```",
+              "blanks": [
+                {
+                  "label": "(1)",
+                  "accept": [
+                    "fit"
+                  ],
+                  "hint": "train the tree"
+                },
+                {
+                  "label": "(2)",
+                  "accept": [
+                    "accuracy_score"
+                  ],
+                  "hint": "fraction correct"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "ai",
+          "freq": 1,
+          "sources": [
+            "AI-generated"
+          ],
+          "q": "A single decision tree gets 100% training accuracy but low test accuracy. Explain the cause and why a Random Forest helps, in bias-variance terms.",
+          "answer": "A fully grown tree can perfectly memorize the training set, giving **low bias but very high variance** — small changes in the data produce very different trees, so it **overfits** and generalizes poorly. A **Random Forest** trains many trees on bootstrapped samples with random feature subsets and averages/votes their outputs. Averaging many **decorrelated high-variance** models **reduces variance** while keeping bias low, improving test accuracy. This mirrors the bias-variance tradeoff: match model complexity to data, and use ensembling to control variance.",
+          "extend": "Deep tree = high variance; forest averages it away.",
+          "tags": [
+            "overfitting",
+            "bias-variance",
+            "random forest"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ss26-prediction",
+      "title": "🔮 SS26 Likely Exam Questions (predicted)",
+      "recap": "Predicted, exam-style questions in the professor's format — concept-first, plus a Keras code item where relevant. Not from a past paper; use to rehearse likely SS26 topics.",
+      "questions": [
+        {
+          "type": "open",
+          "freq": 2,
+          "sources": [
+            "SS26 predicted"
+          ],
+          "tags": [
+            "KNN",
+            "hyperparameters",
+            "bias-variance",
+            "SS26 predicted"
+          ],
+          "q": "(a) How would you **choose the value of K** in K-Nearest Neighbors? (b) What happens to the decision boundary and the bias-variance behaviour as K goes from very small to very large? (c) Would you use KNN for high-resolution image classification? Explain.",
+          "answer": "**(a)** Treat **K** as a hyperparameter: try $K=1,2,\\dots$ and pick the value with the best **validation-set** (or **cross-validation**) performance. Never tune K on the training set (it always favors $K=1$) or on the test set (it destroys the unbiased final estimate).\n\n**(b)** **Small K** (e.g. $K=1$): a jagged boundary that follows individual points — **low bias, high variance**, very sensitive to noise. **Large K**: a smoother boundary that averages many neighbors — **higher bias, lower variance**; too large and it underfits (predicts the majority class).\n\n**(c)** **No.** KNN is **slow at test time** (compares against all stored points), **L2 distance on raw pixels is uninformative** (shifted/tinted images can be equidistant), and it suffers the **curse of dimensionality** — densely covering a high-dimensional space needs exponentially many examples.",
+          "extend": "Pick K by CV; small K = high variance, large K = high bias; KNN unsuitable for raw images (slow, bad metric, curse of dimensionality)."
+        },
+        {
+          "type": "open",
+          "freq": 2,
+          "sources": [
+            "SS26 predicted"
+          ],
+          "tags": [
+            "SVM",
+            "Softmax",
+            "hinge loss",
+            "cross-entropy",
+            "SS26 predicted"
+          ],
+          "q": "(a) What benefit does adding a **regularization term** give a linear classifier? (b) Contrast the **Multiclass SVM (hinge)** loss with the **Softmax** loss — how does each treat an example that is *already* correctly classified with a large margin?",
+          "answer": "**(a)** The total loss is **data loss $+\\ \\lambda\\cdot$ regularization**. Regularization expresses a preference for **simpler (smaller) weights**, which **reduces overfitting** and improves generalization. It also resolves the SVM's scale ambiguity: if $W$ gives loss 0 then so does $2W$; the L2 penalty breaks this tie and picks a unique, well-behaved $W$.\n\n**(b)** The **hinge (SVM) loss saturates**: once the correct-class score beats every wrong class by the margin (1), the loss is exactly 0 and the classifier **stops caring** about that example. The **Softmax / cross-entropy** loss is $-\\log P(y_i\\mid x_i)$ with $P=\\frac{e^{s_k}}{\\sum_j e^{s_j}}$; it is **never fully satisfied** — it keeps pushing the correct-class probability toward 1, so it continues to adjust scores even for already-correct examples.",
+          "extend": "L2 reg ⇒ simpler weights, better generalization, unique $W$. SVM stops at the margin; Softmax always wants $P\\to 1$."
+        },
+        {
+          "type": "open",
+          "freq": 2,
+          "sources": [
+            "SS26 predicted"
+          ],
+          "tags": [
+            "decision tree",
+            "random forest",
+            "entropy",
+            "ensemble",
+            "SS26 predicted"
+          ],
+          "q": "(a) How does a **decision tree** decide which attribute to split on? (b) A single fully-grown tree reaches 100% training accuracy but poor test accuracy — explain in **bias-variance** terms. (c) How does a **Random Forest** address this, and why does the randomization matter?",
+          "answer": "**(a)** It picks the attribute with the largest **information gain** $I(A)=H - EH(A)$: the parent **entropy** minus the weighted average entropy of the children. The attribute that reduces uncertainty the most is chosen at each node (gain 0 means the split is useless).\n\n**(b)** A fully-grown tree can **memorize** the training set — **low bias, very high variance**. Small changes in the data yield very different trees, so it overfits and generalizes poorly.\n\n**(c)** A **Random Forest** builds many trees on **bootstrap samples** with **random attribute subsets** per split, then **votes (classification)** or **averages (regression)**. The randomization makes the trees **decorrelated**; averaging many diverse high-variance models **reduces variance** while keeping bias low, so test accuracy improves.",
+          "extend": "Split on max information gain; deep tree = high variance/overfit; forest = decorrelated trees averaged ⇒ variance down."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,277 @@
+{
+  "id": "ch12",
+  "roman": "XII",
+  "title": "ML & Agentic AI Applications in EDA",
+  "blurb": "★ Overview only · Electronic Design Automation is where all the course's ML ideas come together. This chapter surveys how supervised learning is integrated across the design flow as fast surrogate predictors and decision-makers, and how the emerging wave of agentic AI (LLM + tools + memory in a loop) is reshaping chip design.",
+  "knowledge_points": [
+    {
+      "id": "supervised-learning-eda",
+      "title": "Supervised Learning in EDA",
+      "recap": "EDA tools assist in designing/manufacturing electronic systems (design, verification, synthesis, physical design). As chips reach billions of transistors, classical EDA algorithms with polynomial complexity strain on **scale, time-to-market, productivity and cost**. **Supervised learning** learns a mapping from inputs (design parameters) to outputs (performance metrics). Its pros are **predictive power, speed** (a trained model gives fast predictions regardless of circuit size, $O(n^2)\\to O(1)$) and **transferability**; its cons are **data acquisition cost, hyperparameter tuning, and overfitting / out-of-distribution** errors. SL is applied across the flow (RTL, logic synthesis, physical design, manufacturing, testing) for performance prediction, black-box optimization / design-space exploration, and design automation.",
+      "questions": [
+        {
+          "type": "open",
+          "freq": 3,
+          "sources": [
+            "L12"
+          ],
+          "tags": [
+            "surrogate",
+            "dse"
+          ],
+          "q": "Explain how supervised learning is used as a surrogate model / black-box optimizer in EDA and why this is attractive.",
+          "answer": "A **supervised learning model** is trained on data from expensive EDA simulators to **predict performance metrics (QoR, PPA, timing, power, congestion, reliability)** directly from design parameters, acting as a fast **surrogate** that can **replace computationally expensive simulators** during **design-space exploration / black-box optimization**. It is attractive because although **training takes significant time (a one-time cost)**, the trained model then gives **fast predictions regardless of circuit size** ($O(n^2)$ or worse collapsing toward $O(1)$ inference) and offers **transferability** — reusing models across technology nodes, design stages and circuits. This lets designers evaluate or optimize many candidate configurations far faster than running full simulations, and can even directly optimize/balance PPA trade-offs (e.g. learning-driven gate sizing).",
+          "extend": "Examples: CNN thermal-map prediction, GNN timing prediction (~80x faster than OpenSTA), crosstalk delay prediction, and cross-stage congestion/DRC/IR-drop prediction on datasets like CircuitNet."
+        },
+        {
+          "type": "mc",
+          "freq": 2,
+          "sources": [
+            "L12"
+          ],
+          "tags": [
+            "design-flow"
+          ],
+          "q": "Which of the following are genuine supervised-learning applications across the EDA design flow?",
+          "answer": "Hardware Trojan detection at RTL, logic-synthesis architecture/optimizer selection, lithography hotspot and routability prediction, and manufacturing yield/test prediction.",
+          "options": [
+            {
+              "text": "RTL: hardware Trojan detection and RTL design-quality assessment (e.g. XGBoost/Random Forest).",
+              "correct": true
+            },
+            {
+              "text": "Logic synthesis: selecting adder/multiplier architectures or which optimizer to apply (LSOracle).",
+              "correct": true
+            },
+            {
+              "text": "Physical design: lithography hotspot detection and routability/congestion prediction.",
+              "correct": true
+            },
+            {
+              "text": "Manufacturing: predicting final memory-test results from die electrical-test data to improve yield.",
+              "correct": true
+            }
+          ]
+        },
+        {
+          "type": "open",
+          "freq": 2,
+          "sources": [
+            "L12"
+          ],
+          "tags": [
+            "challenges"
+          ],
+          "q": "What are the main current problems and limitations of applying supervised learning in EDA?",
+          "answer": "Key problems include: **training data** — scarce high-volume, high-quality public data (especially at physical-design level such as lithography mask images), long-tailed distributions, and data-security attacks; **overfitting / out-of-distribution** — models overestimate on unseen inputs outside the training distribution; **algorithm selection** — different EDA tasks need different architectures, requiring domain expertise; and **explainability & reliability** — it is hard to trust and understand ML decisions. Also, **data acquisition is expensive** (IP-sensitive, time-consuming) and models need careful hyperparameter tuning. Future directions address these via public benchmarks, transfer learning / foundation-model adaptation, data augmentation and synthetic data.",
+          "extend": "There are also security/reliability concerns — e.g. backdoor/poisoning attacks on DNN lithographic hotspot detectors."
+        }
+      ]
+    },
+    {
+      "id": "agentic-ai-eda",
+      "title": "Agentic AI in EDA",
+      "recap": "**Agentic AI** = software entities that **perceive, reason, act via tools, and learn from feedback**, usually built on **LLMs + tools** (simulators, synthesizers, P&R, linters) operating in a loop: **plan -> call tools -> observe -> refine**. Core components are a **Brain (LLM)** for reasoning/planning, **Tools** to act on the world, and **Memory** (short- and long-term). EDA is evolving from manual (L0-L1) through the ML era (L2-L3, optimizing single steps) to the **Agentic AI era (L4/L5)** that coordinates multiple tools and adapts to design feedback. A hybrid future pairs **LLMs as orchestrators/planners with small language models (SLMs) as cheap executors**, with heavy emphasis on monitoring/verifying agent behavior.",
+      "questions": [
+        {
+          "type": "open",
+          "freq": 3,
+          "sources": [
+            "L12"
+          ],
+          "tags": [
+            "agentic"
+          ],
+          "q": "Define agentic AI and describe its three main components and its operating loop in the context of chip design.",
+          "answer": "**Agentic AI** refers to software entities that can **perceive, reason, act in tools, and learn from feedback**, typically built on **LLMs plus tools** (EDA simulators, synthesizers, place-and-route, linters). Its three main components are: the **Brain (LLM)** which handles reasoning, planning and language generation (defines goals and detailed plans); **Tools**, how the agent interacts with the outside world (data tools, action tools, orchestration tools); and **Memory**, giving it short-term (conversation history) and long-term context so it improves over iterations. It operates in a loop: **plan -> call tools -> observe results -> refine actions**. In EDA this lets an agent interpret a spec, generate RTL, run tools, read the results, and iterate in a closed feedback loop across design stages.",
+          "extend": "What agentic AI adds over plain ML/GenAI: multi-step planning, tool orchestration, knowledge integration, and self-reflection loops."
+        },
+        {
+          "type": "mc",
+          "freq": 2,
+          "sources": [
+            "L12"
+          ],
+          "tags": [
+            "autonomy",
+            "evolution"
+          ],
+          "q": "How does the lecture characterize the evolution of ML toward agentic EDA?",
+          "answer": "Manual era (L0-L1) -> ML era (L2-L3, optimizing a single step like placement) -> Agentic era (L4) coordinating multiple tools and adapting to feedback.",
+          "options": [
+            {
+              "text": "L0-L1 manual era with fixed logic; L2-L3 ML era optimizing a single step; L4 agentic era coordinating multiple tools and adapting to design goals.",
+              "correct": true
+            },
+            {
+              "text": "Traditional ML in EDA acted mainly as a task-specific helper predicting metrics within fixed, closed flows.",
+              "correct": true
+            },
+            {
+              "text": "Agentic AI removes the need for any EDA tools by generating GDSII directly from a single LLM prompt.",
+              "correct": false
+            },
+            {
+              "text": "Autonomy levels only apply to analog design and never to digital flows.",
+              "correct": false
+            }
+          ]
+        },
+        {
+          "type": "open",
+          "freq": 2,
+          "sources": [
+            "L12"
+          ],
+          "tags": [
+            "slm",
+            "monitoring"
+          ],
+          "q": "Why is a hybrid 'LLM planner + SLM executor' architecture attractive for agentic EDA, and why does monitoring agent performance matter?",
+          "answer": "**Small language models (SLMs)** are far cheaper (10-30x inference savings in energy, latency, hardware), can be fine-tuned on new data in hours, and a specialized 3B-7B SLM can outperform trillion-parameter models in a focused domain, while keeping sensitive data on-premise. So the hybrid uses **LLMs as orchestrators for planning** and **SLMs as executors for repetitive tasks** — strategic model tiering reserves frontier LLMs for high-complexity reasoning. **Monitoring matters** because agents run long multi-step, tool-using loops: trajectory-first auditing and state-grounded scoring (using verifiable EDA outputs like logs and file states) give reproducible, tamper-proof metrics, detect **goal drift and error accumulation** early before small mistakes cascade into expensive failures, and enable closed-loop verification (Pass@k, time-to-first-success) so agents can be trusted at scale.",
+          "extend": "Industrial examples: Synopsys.ai (DSO.ai uses reinforcement learning to search RTL-to-GDSII permutations), Cadence JedAI, NVIDIA ChipNeMo, ChatEDA and ChipAgents."
+        }
+      ]
+    },
+    {
+      "id": "ss26-prediction",
+      "title": "🔮 SS26 Likely Exam Questions (predicted)",
+      "recap": "Predicted, exam-style concept questions in the professor's format. Not from a past paper; use to rehearse likely SS26 topics.",
+      "questions": [
+        {
+          "type": "open",
+          "freq": 2,
+          "sources": [
+            "SS26 predicted"
+          ],
+          "tags": [
+            "surrogate",
+            "dse",
+            "SS26 predicted"
+          ],
+          "q": "(a) Explain how a **supervised learning model** is used as a **surrogate** in the EDA design flow and why this is attractive despite the training cost. (b) State two limitations of applying supervised learning in EDA.",
+          "answer": "(a) A supervised model is trained on data from expensive EDA simulators to **predict performance metrics (PPA, timing, power, congestion, reliability) directly from design parameters**, acting as a fast **surrogate** that replaces the slow simulator during **design-space exploration / black-box optimization**. Although training is a **significant one-time cost**, inference is then **fast regardless of circuit size** (collapsing from $O(n^2)$-or-worse simulation toward roughly $O(1)$ prediction) and models are **transferable** across nodes/stages, so many candidate designs can be evaluated far faster. (b) Limitations include: **scarce high-quality public training data** (and data-acquisition cost, IP sensitivity); **overfitting / out-of-distribution errors** on unseen inputs; **algorithm-selection difficulty** (different tasks need different architectures); and **poor explainability/reliability**.",
+          "extend": "Examples: GNN timing prediction (~80x faster than OpenSTA), CNN thermal-map prediction, congestion/DRC/IR-drop prediction (CircuitNet)."
+        },
+        {
+          "type": "open",
+          "freq": 2,
+          "sources": [
+            "SS26 predicted"
+          ],
+          "tags": [
+            "agentic",
+            "SS26 predicted"
+          ],
+          "q": "Define **agentic AI** and describe its **three main components** and its **operating loop** in the context of chip design.",
+          "answer": "**Agentic AI** refers to software entities that can **perceive, reason, act through tools, and learn from feedback**, typically built on an **LLM plus tools** (simulators, synthesizers, place-and-route, linters). Its three main components are: the **Brain (LLM)** for reasoning, planning and language generation (setting goals and plans); **Tools**, the means by which it acts on the outside world (data/action/orchestration tools); and **Memory**, both short-term (conversation/context) and long-term, so it improves over iterations. It runs in a loop: **plan → call tools → observe results → refine**. In EDA an agent can interpret a spec, generate RTL, run tools, read the results, and iterate in a **closed feedback loop** across design stages.",
+          "extend": "Over plain ML/GenAI, agentic AI adds multi-step planning, tool orchestration, knowledge integration and self-reflection. EDA autonomy evolves L0-L1 (manual) → L2-L3 (ML optimizing single steps) → L4/L5 (agentic, coordinating tools)."
+        },
+        {
+          "type": "mc",
+          "freq": 2,
+          "sources": [
+            "SS26 predicted"
+          ],
+          "tags": [
+            "slm",
+            "monitoring",
+            "autonomy",
+            "SS26 predicted"
+          ],
+          "q": "Which statements about the hybrid 'LLM planner + SLM executor' vision and monitoring of agentic EDA are correct?",
+          "answer": "SLMs are cheaper/specializable executors while LLMs orchestrate planning; monitoring catches goal drift/error accumulation using verifiable EDA outputs; model tiering reserves frontier LLMs for hard reasoning.",
+          "options": [
+            {
+              "text": "Small language models (SLMs) are much cheaper and can be fine-tuned quickly, making them good executors for repetitive tasks while LLMs orchestrate planning.",
+              "correct": true
+            },
+            {
+              "text": "Monitoring agent trajectories with state-grounded scoring (logs, file states) detects goal drift and error accumulation before failures cascade.",
+              "correct": true
+            },
+            {
+              "text": "Strategic model tiering reserves frontier LLMs for high-complexity reasoning and delegates routine work to cheaper models.",
+              "correct": true
+            },
+            {
+              "text": "A single LLM prompt can directly output correct GDSII, eliminating the need for any EDA tools or verification.",
+              "correct": false
+            }
+          ],
+          "extend": "Industrial examples: Synopsys DSO.ai (RL search of RTL-to-GDSII), Cadence JedAI, NVIDIA ChipNeMo, ChatEDA, ChipAgents."
+        }
+      ]
+    },
+    {
+      "id": "ss26-prediction",
+      "title": "🔮 SS26 Likely Exam Questions (predicted)",
+      "recap": "Predicted, exam-style concept questions in the professor's format. Not from a past paper; use to rehearse likely SS26 topics.",
+      "questions": [
+        {
+          "type": "open",
+          "freq": 2,
+          "sources": [
+            "SS26 predicted"
+          ],
+          "tags": [
+            "surrogate",
+            "dse",
+            "SS26 predicted"
+          ],
+          "q": "(a) Explain how a **supervised learning model** is used as a **surrogate** in the EDA design flow and why this is attractive despite the training cost. (b) State two limitations of applying supervised learning in EDA.",
+          "answer": "(a) A supervised model is trained on data from expensive EDA simulators to **predict performance metrics (PPA, timing, power, congestion, reliability) directly from design parameters**, acting as a fast **surrogate** that replaces the slow simulator during **design-space exploration / black-box optimization**. Although training is a **significant one-time cost**, inference is then **fast regardless of circuit size** (collapsing from $O(n^2)$-or-worse simulation toward roughly $O(1)$ prediction) and models are **transferable** across nodes/stages, so many candidate designs can be evaluated far faster. (b) Limitations include: **scarce high-quality public training data** (and data-acquisition cost, IP sensitivity); **overfitting / out-of-distribution errors** on unseen inputs; **algorithm-selection difficulty** (different tasks need different architectures); and **poor explainability/reliability**.",
+          "extend": "Examples: GNN timing prediction (~80x faster than OpenSTA), CNN thermal-map prediction, congestion/DRC/IR-drop prediction (CircuitNet)."
+        },
+        {
+          "type": "open",
+          "freq": 2,
+          "sources": [
+            "SS26 predicted"
+          ],
+          "tags": [
+            "agentic",
+            "SS26 predicted"
+          ],
+          "q": "Define **agentic AI** and describe its **three main components** and its **operating loop** in the context of chip design.",
+          "answer": "**Agentic AI** refers to software entities that can **perceive, reason, act through tools, and learn from feedback**, typically built on an **LLM plus tools** (simulators, synthesizers, place-and-route, linters). Its three main components are: the **Brain (LLM)** for reasoning, planning and language generation (setting goals and plans); **Tools**, the means by which it acts on the outside world (data/action/orchestration tools); and **Memory**, both short-term (conversation/context) and long-term, so it improves over iterations. It runs in a loop: **plan → call tools → observe results → refine**. In EDA an agent can interpret a spec, generate RTL, run tools, read the results, and iterate in a **closed feedback loop** across design stages.",
+          "extend": "Over plain ML/GenAI, agentic AI adds multi-step planning, tool orchestration, knowledge integration and self-reflection. EDA autonomy evolves L0-L1 (manual) → L2-L3 (ML optimizing single steps) → L4/L5 (agentic, coordinating tools)."
+        },
+        {
+          "type": "mc",
+          "freq": 2,
+          "sources": [
+            "SS26 predicted"
+          ],
+          "tags": [
+            "slm",
+            "monitoring",
+            "autonomy",
+            "SS26 predicted"
+          ],
+          "q": "Which statements about the hybrid 'LLM planner + SLM executor' vision and monitoring of agentic EDA are correct?",
+          "answer": "SLMs are cheaper/specializable executors while LLMs orchestrate planning; monitoring catches goal drift/error accumulation using verifiable EDA outputs; model tiering reserves frontier LLMs for hard reasoning.",
+          "options": [
+            {
+              "text": "Small language models (SLMs) are much cheaper and can be fine-tuned quickly, making them good executors for repetitive tasks while LLMs orchestrate planning.",
+              "correct": true
+            },
+            {
+              "text": "Monitoring agent trajectories with state-grounded scoring (logs, file states) detects goal drift and error accumulation before failures cascade.",
+              "correct": true
+            },
+            {
+              "text": "Strategic model tiering reserves frontier LLMs for high-complexity reasoning and delegates routine work to cheaper models.",
+              "correct": true
+            },
+            {
+              "text": "A single LLM prompt can directly output correct GDSII, eliminating the need for any EDA tools or verification.",
+              "correct": false
+            }
+          ],
+          "extend": "Industrial examples: Synopsys DSO.ai (RL search of RTL-to-GDSII), Cadence JedAI, NVIDIA ChipNeMo, ChatEDA, ChipAgents."
+        }
+      ]
+    }
+  ]
+}

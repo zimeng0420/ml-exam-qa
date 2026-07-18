@@ -1,0 +1,267 @@
+{
+  "id": "ch08",
+  "roman": "VIII",
+  "title": "Language Models & Vision-Language Models",
+  "blurb": "★ Overview only · The decoder-only Transformer, self-attention and tokenization behind modern LLMs, plus how Vision Transformers and contrastive image-text models (CLIP, Flamingo) extend the same ideas to multimodal Vision-Language Models.",
+  "knowledge_points": [
+    {
+      "id": "transformer-attention",
+      "title": "Transformer Architecture & Self-Attention",
+      "recap": "Modern LLMs use the **decoder-only Transformer**. Text is first **tokenized** (e.g. Byte-Pair Encoding, WordPiece, SentencePiece) into sub-word units, mapped to vectors via an **embedding matrix**, and combined with **positional encodings** so the model knows token order. The core operation is **scaled dot-product self-attention**, which lets every token be re-represented as a weighted combination of the others. A decoder block stacks masked multi-head attention, a feed-forward layer, **layer normalization** and **residual connections**.",
+      "questions": [
+        {
+          "type": "open",
+          "freq": 3,
+          "sources": [
+            "L08"
+          ],
+          "tags": [
+            "attention"
+          ],
+          "q": "Write out the scaled dot-product attention formula and explain each part, including why the scaling factor is used.",
+          "answer": "Attention is computed as $$\\text{Attention}(Q,K,V)=\\text{softmax}\\!\\left(\\frac{QK^{T}}{\\sqrt{d_k}}\\right)V$$ The input $[B,T,d]$ is linearly projected into **query** $Q$, **key** $K$ and **value** $V$ matrices. The dot product $QK^{T}$ gives an **attention score** for every pair of tokens (how much they should influence each other). Dividing by $\\sqrt{d_k}$ (the key dimension) keeps the scores from growing too large, which stabilizes training and keeps the **softmax** gradients well-behaved. Softmax turns the scores into a probability distribution, and multiplying by $V$ produces each token's output as a **weighted combination of value vectors**.",
+          "extend": "With a single head a few tokens can dominate; **multi-head attention** splits $d$ into $H$ heads so the model can attend to different parts of the sequence simultaneously."
+        },
+        {
+          "type": "mc",
+          "freq": 2,
+          "sources": [
+            "L08"
+          ],
+          "tags": [
+            "masking"
+          ],
+          "q": "Why does a decoder-only language model use masked (causal) self-attention?",
+          "answer": "Because generation is auto-regressive, a token may only attend to itself and earlier tokens; the mask blocks any look-ahead to future positions.",
+          "options": [
+            {
+              "text": "The task is to generate sequences token-by-token, so a token must not attend to future tokens it has not produced yet.",
+              "correct": true
+            },
+            {
+              "text": "It reduces the number of parameters in the attention layer.",
+              "correct": false
+            },
+            {
+              "text": "It replaces the need for positional encodings.",
+              "correct": false
+            },
+            {
+              "text": "It converts the softmax into a valid probability distribution.",
+              "correct": false
+            }
+          ]
+        },
+        {
+          "type": "open",
+          "freq": 2,
+          "sources": [
+            "L08"
+          ],
+          "tags": [
+            "tokenization",
+            "embedding"
+          ],
+          "q": "Explain the first three steps that turn raw text into the input of a Transformer block: tokenization, embedding and positional encoding.",
+          "answer": "**Tokenization** converts strings into sub-word tokens from a fixed vocabulary using schemes such as **Byte-Pair Encoding**, **WordPiece** or **SentencePiece**. **Embedding** maps each token id to a vector by selecting the corresponding row of a learned **embedding matrix** (usually trained jointly with the model). **Positional encoding** then injects order information into the embeddings; without it the sentences 'the man hunted the mouse' and 'the mouse hunted the man' would be indistinguishable. The original sinusoidal scheme has since been improved by methods like **RoPE**.",
+          "extend": "Layer normalization is preferred over batch norm for sequences because it normalizes across each token's embedding dimension, which is far more stable at inference time."
+        },
+        {
+          "type": "open",
+          "freq": 1,
+          "sources": [
+            "L08"
+          ],
+          "tags": [
+            "residual",
+            "normalization"
+          ],
+          "q": "What role do residual (skip) connections and layer normalization play in a decoder block?",
+          "answer": "**Residual connections** add a layer's input back to its transformed output instead of passing only the transformed value forward. This helps combat **vanishing/exploding gradients** and improves training stability of deep stacks. **Layer normalization** (today often **RMSNorm**) normalizes activations across the token embedding dimension, again stabilizing training and mitigating exploding/vanishing gradients; it is favored over batch normalization for sequence models."
+        }
+      ]
+    },
+    {
+      "id": "llm-scaling-moe",
+      "title": "LLM Scaling & Mixture of Experts",
+      "recap": "**Scaling laws** show that modeling performance improves with more compute, larger datasets and more parameters (though cost rises too). To keep growing capacity without proportional compute, modern LLMs use **Mixture of Experts (MoE)**: a **gating network** produces a probability distribution over many **expert** sub-networks, and only a sparse subset (e.g. top-1 in the Switch Transformer) is activated per token. This decouples total parameters from active compute.",
+      "questions": [
+        {
+          "type": "open",
+          "freq": 2,
+          "sources": [
+            "L08"
+          ],
+          "tags": [
+            "scaling"
+          ],
+          "q": "State what scaling laws say about LLM performance and name the two main directions the field pursues once naive scaling saturates.",
+          "answer": "Scaling laws state that **modeling performance improves predictably with more compute, larger dataset size and more parameters** (but cost grows as well). Once simply scaling model size hits diminishing returns, two main directions are pursued: (1) **test-time compute / reasoning, RL and agents** (letting models 'think' longer at inference), and (2) **bigger models via Mixture of Experts**, which add parameters cheaply through sparse activation."
+        },
+        {
+          "type": "mc",
+          "freq": 2,
+          "sources": [
+            "L08"
+          ],
+          "tags": [
+            "moe"
+          ],
+          "q": "In a sparsely-gated Mixture-of-Experts layer, what does the gating network do?",
+          "answer": "It outputs a probability distribution that selects/weights which experts process each token, so only a subset of experts is active.",
+          "options": [
+            {
+              "text": "It outputs weights deciding how much each expert is trusted, so only a sparse subset of experts is activated per token.",
+              "correct": true
+            },
+            {
+              "text": "It normalizes the activations across the batch dimension.",
+              "correct": false
+            },
+            {
+              "text": "It merges all experts into a single dense feed-forward network.",
+              "correct": false
+            },
+            {
+              "text": "It computes the positional encoding for each expert.",
+              "correct": false
+            }
+          ],
+          "extend": "The Switch Transformer used k=1 routing and tricks like a capacity factor and expert dropout to solve MoE instability and speed up training."
+        },
+        {
+          "type": "ai",
+          "freq": 1,
+          "sources": [
+            "AI-generated"
+          ],
+          "tags": [
+            "moe",
+            "scaling"
+          ],
+          "q": "An MoE model is advertised as having 137B parameters but is 'cheap to run'. Reconcile these two facts.",
+          "answer": "The **137B** figure is the total parameter count across all experts, but MoE uses **sparse activation**: for each token the gating network routes to only a small subset of experts, so the number of **active parameters** actually used in a forward pass is much smaller. Compute scales with active parameters, not total parameters, so the model can hold enormous capacity while keeping per-token inference cost low."
+        }
+      ]
+    },
+    {
+      "id": "vision-language-models",
+      "title": "Vision Transformers & Vision-Language Models",
+      "recap": "**Vision Transformers (ViT)** split an image into patches, apply a **linear patch embedding**, add trainable **positional embeddings** and an extra **class token**, then feed them to a Transformer encoder. ViTs have weaker **inductive bias** than CNNs, so they need large pretraining data to learn local structure. **Self-supervised learning** avoids costly labels: **SimCLR** uses image-image contrastive learning, **CLIP** aligns image-text pairs for zero-shot classification, **MAE** reconstructs masked patches, and **Flamingo** couples a vision encoder to an LLM via gated cross-attention for multimodal few-shot learning.",
+      "questions": [
+        {
+          "type": "open",
+          "freq": 3,
+          "sources": [
+            "L08"
+          ],
+          "tags": [
+            "clip",
+            "contrastive"
+          ],
+          "q": "Explain how CLIP is trained and why it enables zero-shot classification.",
+          "answer": "**CLIP** (Contrastive Language-Image Pre-training) is trained on huge numbers of **image-text pairs pulled from the internet** (no manual labeling). It jointly encodes images (with a ViT) and text (with a text/GPT-style encoder) and uses a **contrastive objective** to make matching image-text pairs have similar embeddings and non-matching pairs dissimilar. Because it learns to align images with natural-language descriptions rather than a fixed label set, at test time you can supply any list of candidate text prompts and CLIP returns which one best matches an image, letting it recognize classes it was never explicitly trained on, i.e. **zero-shot classification**. It acts as a 'match-maker' and is useful for search and guiding diffusion, but not for generative captioning.",
+          "extend": "Nvidia's manufacturing case study uses VLMs/VFMs (e.g. DINOv2, Cosmos Reason) with self-supervised learning and few-shot fine-tuning to classify wafer/die defects where labeled data is scarce."
+        },
+        {
+          "type": "open",
+          "freq": 2,
+          "sources": [
+            "L08"
+          ],
+          "tags": [
+            "vit"
+          ],
+          "q": "Describe how a Vision Transformer prepares an image as input and why ViTs typically need more pretraining data than CNNs.",
+          "answer": "A ViT divides the image into fixed-size **patches**, projects each patch to a vector with a **linear patch embedding**, adds a **trainable positional embedding** and prepends an extra **<class> token** used for classification. The sequence is then processed by a Transformer encoder. Unlike CNNs, which have locality and translation-equivariance **hard-coded** as an inductive bias, ViTs have a much weaker inductive bias and must **learn** local structure from data, so they need **larger datasets / pretraining** before they outperform CNNs (larger architectures in particular need larger datasets)."
+        },
+        {
+          "type": "mc",
+          "freq": 1,
+          "sources": [
+            "L08"
+          ],
+          "tags": [
+            "ssl",
+            "simclr"
+          ],
+          "q": "What is the core idea of contrastive self-supervised learning as used in SimCLR?",
+          "answer": "Create two augmented views of an image and train the encoder so the two positive (same-source) views are similar and negatives are dissimilar.",
+          "options": [
+            {
+              "text": "Take an image, produce two transformed views, and train the encoder so the two positive views have similar representations while negatives are pushed apart.",
+              "correct": true
+            },
+            {
+              "text": "Manually label millions of images with fine-grained class names.",
+              "correct": false
+            },
+            {
+              "text": "Reconstruct the full sentence describing an image using cross-entropy loss.",
+              "correct": false
+            },
+            {
+              "text": "Predict the next image patch autoregressively from left to right.",
+              "correct": false
+            }
+          ],
+          "extend": "MAE instead learns by reconstructing masked pixels (reconstructive learning), and Flamingo bridges a frozen vision encoder to a language model with gated cross-attention for few-shot multimodal tasks."
+        }
+      ]
+    },
+    {
+      "id": "ss26-prediction",
+      "title": "🔮 SS26 Likely Exam Questions (predicted)",
+      "recap": "Predicted, exam-style questions in the professor's format — concept-first, plus a Keras code item where relevant. Not from a past paper; use to rehearse likely SS26 topics.",
+      "questions": [
+        {
+          "type": "open",
+          "freq": 2,
+          "sources": [
+            "SS26 predicted"
+          ],
+          "tags": [
+            "attention",
+            "transformer",
+            "SS26 predicted"
+          ],
+          "q": "(a) In **scaled dot-product self-attention**, what are the **query, key and value** and how do they produce a token's output?\n(b) Why is the scores matrix divided by $\\sqrt{d_k}$?\n(c) Why does a **decoder-only** language model use **masked (causal)** attention?",
+          "answer": "**(a)** Each token's vector is linearly projected into a **query** $Q$, **key** $K$ and **value** $V$. The dot product $QK^{\\top}$ scores how much every token should attend to every other; a **softmax** turns each row into weights, and multiplying by $V$ makes the output a **weighted combination of value vectors** — i.e. each token is re-represented using the others: $\\text{softmax}\\!\\left(\\frac{QK^{\\top}}{\\sqrt{d_k}}\\right)V$.\n\n**(b)** For large key dimension $d_k$ the dot products grow large in magnitude, pushing the **softmax into saturated regions** with tiny gradients. Dividing by $\\sqrt{d_k}$ keeps the scores at a reasonable scale, **stabilizing training** and keeping softmax gradients well-behaved.\n\n**(c)** Generation is **auto-regressive** (token by token), so when predicting position $t$ the model may only use tokens $\\le t$. The **causal mask** blocks attention to **future** positions, preventing the model from 'cheating' by looking at tokens it has not yet produced.",
+          "extend": "**Multi-head** attention splits $d$ into $H$ heads so the model attends to different subspaces/relationships in parallel, rather than letting a few tokens dominate a single head."
+        },
+        {
+          "type": "open",
+          "freq": 2,
+          "sources": [
+            "SS26 predicted"
+          ],
+          "tags": [
+            "tokenization",
+            "positional-encoding",
+            "normalization",
+            "SS26 predicted"
+          ],
+          "q": "(a) Explain the three steps that turn raw text into a Transformer block's input: **tokenization**, **embedding**, **positional encoding**.\n(b) Why is **positional encoding** necessary at all?\n(c) Why do Transformers use **layer normalization** rather than **batch normalization** for sequences?",
+          "answer": "**(a)** **Tokenization** splits text into sub-word units from a fixed vocabulary (**Byte-Pair Encoding**, **WordPiece**, **SentencePiece**). **Embedding** looks up each token id in a learned **embedding matrix** to get a vector. **Positional encoding** then adds order information to those vectors before they enter the block.\n\n**(b)** Self-attention is **permutation-invariant** — on its own it treats a sentence as a *set* of tokens, so 'the man hunted the mouse' and 'the mouse hunted the man' would be identical. Positional encodings (sinusoidal, or modern **RoPE**) inject **token order** so meaning that depends on position is preserved.\n\n**(c)** **Layer norm** normalizes across **each token's own embedding dimension**, independent of other tokens or batch size, so it behaves identically at training and inference and for any sequence length. **Batch norm** depends on **batch statistics**, which are unstable for variable-length sequences and small/variable batches at inference. (Modern models often use **RMSNorm**.)",
+          "extend": "**Residual (skip) connections** add each sublayer's input back to its output, combating vanishing/exploding gradients and stabilizing very deep decoder stacks."
+        },
+        {
+          "type": "open",
+          "freq": 2,
+          "sources": [
+            "SS26 predicted"
+          ],
+          "tags": [
+            "clip",
+            "vit",
+            "vlm",
+            "SS26 predicted"
+          ],
+          "q": "(a) How is **CLIP** trained, and why does that enable **zero-shot** classification?\n(b) A **Vision Transformer (ViT)** and a **CNN** are both offered for a task with only a small labeled dataset — **which would you choose and which would you NOT**, and why?",
+          "answer": "**(a)** **CLIP** is trained on huge numbers of **(image, text) pairs** scraped from the web (no manual labels). An image encoder (ViT) and a text encoder are trained with a **contrastive objective**: matching image–text pairs are pulled together in embedding space and non-matching pairs pushed apart. Because it aligns images with **natural-language descriptions** rather than a fixed label set, at test time you can supply **any list of text prompts** and pick the closest — recognizing classes it never explicitly trained on, i.e. **zero-shot classification**.\n\n**(b)** With **little data**, prefer the **CNN**: its **locality and translation-equivariance are hard-coded** as an inductive bias, so it learns efficiently from few examples. **Avoid a ViT trained from scratch**: it has a **weak inductive bias** and must *learn* local structure from data, so it needs **large pretraining datasets** before it beats a CNN — it would likely **overfit** here. (A viable middle ground is a **pretrained** ViT/CLIP backbone fine-tuned with few-shot / self-supervised methods.)",
+          "extend": "CLIP is a 'match-maker' (great for retrieval and guiding diffusion) but is **not generative** — it does not write captions. Self-supervised approaches: **SimCLR** (contrastive), **MAE** (masked reconstruction), **Flamingo** (vision encoder + LLM via gated cross-attention)."
+        }
+      ]
+    }
+  ]
+}

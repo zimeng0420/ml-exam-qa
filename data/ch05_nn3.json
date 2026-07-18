@@ -1,0 +1,603 @@
+{
+  "id": "ch05",
+  "roman": "V",
+  "title": "Neural Networks III: Advanced Architectures",
+  "blurb": "★★★ Core / must-know · The training toolbox for real models: advanced optimizers (SGD+Momentum, AdaGrad, RMSProp, Adam), why second-order methods are impractical, and the fight against overfitting — capacity control, L1/L2 weight regularization, dropout, data augmentation and transfer learning. Includes Keras code from the IMDB overfitting lab.",
+  "knowledge_points": [
+    {
+      "id": "advanced-optimizers",
+      "title": "Advanced Optimizers",
+      "recap": "Plain **SGD** struggles: slow along shallow directions + jitter on steep ones (high condition number), gets stuck at **saddle points**/local minima (zero gradient), and minibatch gradients are **noisy**. Fixes: **SGD+Momentum** builds a velocity (running mean of gradients, friction $\\rho\\approx0.9$); **Nesterov** looks ahead; **AdaGrad** scales by accumulated squared gradients (step shrinks over time); **RMSProp** uses a decaying average to avoid AdaGrad's decay-to-zero; **Adam** = momentum + RMSProp + bias correction ($\\beta_1=0.9, \\beta_2=0.999, \\text{lr}\\approx10^{-3}$) — a great default.",
+      "questions": [
+        {
+          "type": "open",
+          "freq": 3,
+          "sources": [
+            "L05"
+          ],
+          "tags": [
+            "sgd",
+            "problems"
+          ],
+          "q": "What are the main problems with plain SGD as an optimizer?",
+          "answer": "(1) **Poor conditioning**: if the loss changes quickly in one direction and slowly in another (high condition number of the Hessian), SGD makes very slow progress along the shallow direction while jittering along the steep one. (2) **Saddle points / local minima**: the gradient is ~zero there so SGD gets **stuck** — and saddle points are extremely common in high dimensions. (3) **Noisy gradients**: gradients come from minibatches, so each step is a noisy estimate of the true gradient.",
+          "extend": "Momentum addresses all three by accumulating a velocity that carries through flat/noisy regions."
+        },
+        {
+          "type": "open",
+          "freq": 3,
+          "sources": [
+            "L05"
+          ],
+          "tags": [
+            "momentum"
+          ],
+          "q": "Explain **SGD + Momentum**: what quantity is accumulated, and what does the friction parameter do?",
+          "answer": "Momentum maintains a **velocity** $v$ that is a running (exponential) mean of the gradients: $v_{t+1} = \\rho v_t + \\nabla L$, then $w_{t+1} = w_t - \\alpha v_{t+1}$. The **friction** $\\rho$ (typically **0.9 or 0.99**) controls how much past velocity is retained. This 'builds up speed' along consistent gradient directions, damping oscillations, powering through **saddle points** and **poor conditioning**, and averaging out minibatch **noise**.",
+          "extend": "Nesterov momentum evaluates the gradient at the look-ahead position, often converging a bit faster."
+        },
+        {
+          "type": "mc",
+          "freq": 3,
+          "sources": [
+            "L05"
+          ],
+          "tags": [
+            "adam"
+          ],
+          "q": "What best describes the **Adam** optimizer and its recommended defaults?",
+          "answer": "Adam is RMSProp with momentum plus bias correction; the classic defaults are beta1=0.9, beta2=0.999, lr=1e-3.",
+          "options": [
+            {
+              "text": "Momentum (first moment) + RMSProp (second moment) + bias correction; defaults β1=0.9, β2=0.999, lr≈1e-3",
+              "correct": true
+            },
+            {
+              "text": "Pure gradient descent with a fixed large learning rate and no state",
+              "correct": false
+            },
+            {
+              "text": "A second-order method that inverts the Hessian each step",
+              "correct": false
+            },
+            {
+              "text": "AdaGrad with the accumulated squared-gradient term removed",
+              "correct": false
+            }
+          ]
+        },
+        {
+          "type": "open",
+          "freq": 2,
+          "sources": [
+            "L05"
+          ],
+          "tags": [
+            "learning-rate-decay"
+          ],
+          "q": "Name the learning-rate decay schedules mentioned and say when decay matters most.",
+          "answer": "**Step decay** (e.g. halve the LR every few epochs), **exponential decay** ($\\alpha = \\alpha_0 e^{-kt}$) and **1/t decay** ($\\alpha = \\alpha_0/(1+kt)$). Learning-rate decay is **more critical with SGD+Momentum** and **less common with Adam** (which adapts per-parameter). A tell-tale sign it's time to decay is a loss curve that plateaus.",
+          "extend": "Cyclic LR schedules can even be exploited for snapshot ensembles."
+        },
+        {
+          "type": "mc",
+          "freq": 2,
+          "sources": [
+            "L05"
+          ],
+          "tags": [
+            "second-order"
+          ],
+          "q": "Why are second-order (Newton) methods impractical for deep learning?",
+          "answer": "The Hessian has O(N^2) entries and costs O(N^3) to invert, infeasible for millions of parameters.",
+          "options": [
+            {
+              "text": "The Hessian has O(N²) elements and inverting it is O(N³), infeasible when N is tens/hundreds of millions",
+              "correct": true
+            },
+            {
+              "text": "They require a learning rate that is impossible to tune",
+              "correct": false
+            },
+            {
+              "text": "They cannot be used with minibatches at all under any circumstances",
+              "correct": false
+            },
+            {
+              "text": "They always diverge on convex problems",
+              "correct": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "regularization-overfitting",
+      "title": "Overfitting & Regularization (code)",
+      "recap": "The core ML tension is **optimization** (fit training data) vs **generalization** (perform on new data). Overfitting = training loss keeps dropping while validation loss rises. Remedies: **reduce capacity** (fewer/smaller layers), **weight regularization** (L1 = sum of |w|, L2 / weight decay = sum of w², elastic net = both), and **Dropout** (randomly zero activations in training, scale/keep-all at test). All follow the pattern: add randomness at train, average it out at test.",
+      "questions": [
+        {
+          "type": "open",
+          "freq": 3,
+          "sources": [
+            "L05",
+            "Lab05"
+          ],
+          "tags": [
+            "overfitting",
+            "capacity"
+          ],
+          "q": "Define overfitting in terms of optimization vs generalization, and explain how reducing a network's **capacity** helps.",
+          "answer": "**Optimization** is fitting the training data as well as possible; **generalization** is performance on unseen data. Early in training the two are correlated (**underfitting**), but past a point validation metrics stall and degrade while training loss keeps falling — that is **overfitting**: the model memorizes patterns specific to the training set. **Capacity** is the number of learnable parameters. A model with less capacity can't memorize a dictionary-like mapping, so it is forced to learn **compressed, predictive representations** that generalize better. The goal is a compromise between too much and too little capacity.",
+          "extend": "The best cure is more data; when unavailable, constrain the information the model can store."
+        },
+        {
+          "type": "open",
+          "freq": 2,
+          "sources": [
+            "Lab05"
+          ],
+          "tags": [
+            "code",
+            "capacity"
+          ],
+          "q": "**Fill in the blanks** (rotating variant each visit):",
+          "answer": "```python\nfrom tensorflow.keras import models, layers\n\n# Original: 16-16-1\noriginal_model = models.Sequential()\noriginal_model.add(layers.Dense(16, activation='relu', input_shape=(10000,)))\noriginal_model.add(layers.Dense(16, activation='relu'))\noriginal_model.add(layers.Dense(1, activation='sigmoid'))\noriginal_model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['acc'])\n\n# Smaller: 4-4-1 (less capacity)\nsmaller_model = models.Sequential()\nsmaller_model.add(layers.Dense(4, activation='relu', input_shape=(10000,)))\nsmaller_model.add(layers.Dense(4, activation='relu'))\nsmaller_model.add(layers.Dense(1, activation='sigmoid'))\nsmaller_model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['acc'])\n```\nThe **smaller** model starts overfitting **later** (its validation loss rises more slowly), because it has less memorization capacity.",
+          "extend": "A 'bigger' model overfits almost immediately and drives training loss to ~0.",
+          "variants": [
+            {
+              "note": "Capacity units & shapes",
+              "code": "```python\nfrom tensorflow.keras import models, layers\noriginal_model = models.Sequential()\noriginal_model.add(layers.Dense(16, activation='relu', input_shape=(____(1),)))\noriginal_model.add(layers.Dense(16, activation='relu'))\noriginal_model.add(layers.Dense(1, activation=____(2)))\nsmaller_model = models.Sequential()\nsmaller_model.add(layers.Dense(____(3), activation='relu', input_shape=(10000,)))  # less capacity\n```",
+              "blanks": [
+                {
+                  "label": "(1)",
+                  "accept": [
+                    "10000"
+                  ],
+                  "hint": "IMDB one-hot vocabulary size"
+                },
+                {
+                  "label": "(2)",
+                  "accept": [
+                    "'sigmoid'",
+                    "sigmoid"
+                  ],
+                  "hint": "binary output activation"
+                },
+                {
+                  "label": "(3)",
+                  "accept": [
+                    "4"
+                  ],
+                  "hint": "smaller model's hidden width"
+                }
+              ]
+            },
+            {
+              "note": "Activation & compile",
+              "code": "```python\noriginal_model.add(layers.Dense(16, activation=____(1), input_shape=(10000,)))\noriginal_model.add(layers.Dense(1, activation='sigmoid'))\noriginal_model.compile(optimizer='adam', loss=____(2), metrics=['acc'])  # 2-class\n```",
+              "blanks": [
+                {
+                  "label": "(1)",
+                  "accept": [
+                    "'relu'",
+                    "relu"
+                  ],
+                  "hint": "hidden activation"
+                },
+                {
+                  "label": "(2)",
+                  "accept": [
+                    "'binary_crossentropy'",
+                    "binary_crossentropy"
+                  ],
+                  "hint": "binary classification loss"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "open",
+          "freq": 3,
+          "sources": [
+            "Lab05",
+            "L05"
+          ],
+          "tags": [
+            "code",
+            "l2",
+            "weight-decay"
+          ],
+          "q": "**Fill in the blanks** (rotating variant each visit):",
+          "answer": "```python\nfrom tensorflow.keras import layers, regularizers\n\nlayers.Dense(16, activation='relu',\n             kernel_regularizer=regularizers.L2(0.001))\n```\n**L2** adds a cost proportional to the **square** of each weight ($0.001 \\times w^2$) to the loss, pushing weights toward small values (a 'simpler', lower-entropy model less prone to overfitting). This penalty is only added at **training** time (so training loss looks higher). Alternatives: **L1** `regularizers.l1(0.001)` (proportional to $|w|$, encourages sparsity) and **elastic net** `regularizers.l1_l2(l1=0.001, l2=0.001)` (both).",
+          "extend": "L2 regularization is also known as weight decay.",
+          "variants": [
+            {
+              "note": "L2 regularizer",
+              "code": "```python\nfrom tensorflow.keras import layers, regularizers\nlayers.Dense(16, activation='relu',\n             kernel_regularizer=regularizers.____(1)(____(2)))\n```",
+              "blanks": [
+                {
+                  "label": "(1)",
+                  "accept": [
+                    "L2",
+                    "l2"
+                  ],
+                  "hint": "squared-weight penalty"
+                },
+                {
+                  "label": "(2)",
+                  "accept": [
+                    "0.001"
+                  ],
+                  "hint": "regularization strength"
+                }
+              ]
+            },
+            {
+              "note": "L1 & elastic-net alternatives",
+              "code": "```python\nfrom tensorflow.keras import layers, regularizers\n# sparsity-encouraging penalty\nlayers.Dense(16, activation='relu', kernel_regularizer=regularizers.____(1)(0.001))\n# both penalties combined\nlayers.Dense(16, activation='relu', kernel_regularizer=regularizers.____(2)(l1=0.001, l2=0.001))\n```",
+              "blanks": [
+                {
+                  "label": "(1)",
+                  "accept": [
+                    "l1",
+                    "L1"
+                  ],
+                  "hint": "absolute-value penalty (sparsity)"
+                },
+                {
+                  "label": "(2)",
+                  "accept": [
+                    "l1_l2",
+                    "L1L2",
+                    "l1l2"
+                  ],
+                  "hint": "elastic-net (L1+L2) regularizer"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "open",
+          "freq": 3,
+          "sources": [
+            "Lab05",
+            "L05"
+          ],
+          "tags": [
+            "code",
+            "dropout"
+          ],
+          "q": "**Fill in the blanks** (rotating variant each visit):",
+          "answer": "```python\nmodel = models.Sequential()\nmodel.add(layers.Dense(16, activation='relu', input_shape=(10000,)))\nmodel.add(layers.Dropout(0.5))\nmodel.add(layers.Dense(16, activation='relu'))\nmodel.add(layers.Dropout(0.5))\nmodel.add(layers.Dense(1, activation='sigmoid'))\n```\nAt **training** time dropout randomly **zeros a fraction (rate, e.g. 0.5)** of a layer's outputs, breaking co-adaptation and forcing redundant representations. At **test** time no units are dropped; the outputs are **scaled by the dropout rate** so that a neuron's expected output matches training (or, with **inverted dropout**, scaling is done during training and test time is unchanged). Rate is typically 0.2-0.5.",
+          "extend": "Interpretation: dropout trains a huge ensemble of sub-networks that share weights.",
+          "variants": [
+            {
+              "note": "Dropout layers & head",
+              "code": "```python\nmodel = models.Sequential()\nmodel.add(layers.Dense(16, activation='relu', input_shape=(10000,)))\nmodel.add(layers.____(1)(____(2)))       # drop 50%\nmodel.add(layers.Dense(16, activation='relu'))\nmodel.add(layers.Dropout(0.5))\nmodel.add(layers.Dense(1, activation=____(3)))   # binary output\n```",
+              "blanks": [
+                {
+                  "label": "(1)",
+                  "accept": [
+                    "Dropout",
+                    "dropout"
+                  ],
+                  "hint": "random-dropping layer"
+                },
+                {
+                  "label": "(2)",
+                  "accept": [
+                    "0.5"
+                  ],
+                  "hint": "dropout rate"
+                },
+                {
+                  "label": "(3)",
+                  "accept": [
+                    "'sigmoid'",
+                    "sigmoid"
+                  ],
+                  "hint": "binary output activation"
+                }
+              ]
+            },
+            {
+              "note": "Input shape & activation",
+              "code": "```python\nmodel = models.Sequential()\nmodel.add(layers.Dense(16, activation=____(1), input_shape=(____(2),)))  # IMDB features\nmodel.add(layers.Dropout(0.5))\n```",
+              "blanks": [
+                {
+                  "label": "(1)",
+                  "accept": [
+                    "'relu'",
+                    "relu"
+                  ],
+                  "hint": "hidden activation"
+                },
+                {
+                  "label": "(2)",
+                  "accept": [
+                    "10000"
+                  ],
+                  "hint": "IMDB vocabulary / input dimension"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "open",
+          "freq": 2,
+          "sources": [
+            "Lab05"
+          ],
+          "tags": [
+            "calc",
+            "parameters"
+          ],
+          "q": "How many **trainable parameters** does the original IMDB model (Dense 10000→16, Dense 16→16, Dense 16→1) have? Show the arithmetic.",
+          "answer": "Per Dense layer, params = $(\\text{in} \\times \\text{out}) + \\text{out}$ (weights + biases).\n- Layer 1: $10000 \\times 16 + 16 = 160016$\n- Layer 2: $16 \\times 16 + 16 = 272$\n- Layer 3: $16 \\times 1 + 1 = 17$\n\nTotal = $160016 + 272 + 17 = 160305$ trainable parameters.",
+          "calc": [
+            {
+              "label": "total trainable parameters",
+              "value": 160305,
+              "tol": 0
+            }
+          ]
+        },
+        {
+          "type": "mc",
+          "freq": 3,
+          "sources": [
+            "L05"
+          ],
+          "tags": [
+            "dropout",
+            "test-time"
+          ],
+          "q": "At **test time**, how are dropout units handled?",
+          "answer": "All neurons stay active at test time; activations are scaled to match the training-time expectation.",
+          "options": [
+            {
+              "text": "All neurons are active; activations are scaled (by the dropout probability) to match the expected training output",
+              "correct": true
+            },
+            {
+              "text": "Half the neurons are randomly dropped, same as training",
+              "correct": false
+            },
+            {
+              "text": "The whole layer is removed from the network",
+              "correct": false
+            },
+            {
+              "text": "The dropout rate is increased to 1.0",
+              "correct": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "transfer-augmentation",
+      "title": "Data Augmentation & Transfer Learning",
+      "recap": "**Data augmentation** is train-time regularization: apply label-preserving transforms (horizontal flips, random crops/scales, color jitter, rotation/shear) and marginalize over them at test time. **Transfer learning**: pretrain a big network on a large dataset (e.g. ImageNet), then reuse it — with little similar data, freeze the features and train only a linear classifier on top; with more data, **fine-tune** more layers using a **lower learning rate (~1/10 of original)**. Model Ensembles (independent models or snapshots) give a few % extra.",
+      "questions": [
+        {
+          "type": "open",
+          "freq": 3,
+          "sources": [
+            "L05"
+          ],
+          "tags": [
+            "transfer-learning"
+          ],
+          "q": "Explain transfer learning with CNNs and how the strategy changes with dataset size/similarity.",
+          "answer": "Pretrain a large network on a big dataset (e.g. **ImageNet**), then transfer it to your task. Lower/early layers learn **generic** features, later layers are **task-specific**. Strategy: with **very little data** similar to the source, **freeze** the conv features and train only a **linear classifier / the final FC layer** on top; with **more data**, **fine-tune** more of the higher layers. If your data is very different from the source, you're in more trouble — try classifiers from different stages or fine-tune more layers. Fine-tuning uses a **lower learning rate (~1/10 of the original)**.",
+          "extend": "Transfer learning is the norm, not the exception — frameworks ship 'Model Zoos' of pretrained weights."
+        },
+        {
+          "type": "mc",
+          "freq": 2,
+          "sources": [
+            "L05"
+          ],
+          "tags": [
+            "transfer-learning"
+          ],
+          "q": "You have a **small** dataset that is **very similar** to ImageNet. What is the recommended transfer-learning approach?",
+          "answer": "Freeze the pretrained features and train a linear classifier on the top layer.",
+          "options": [
+            {
+              "text": "Freeze the pretrained conv features and train a linear classifier on the top layer",
+              "correct": true
+            },
+            {
+              "text": "Train the entire network from scratch with random weights",
+              "correct": false
+            },
+            {
+              "text": "Fine-tune every layer with a large learning rate",
+              "correct": false
+            },
+            {
+              "text": "Discard the pretrained model; transfer learning cannot help",
+              "correct": false
+            }
+          ]
+        },
+        {
+          "type": "open",
+          "freq": 2,
+          "sources": [
+            "L05"
+          ],
+          "tags": [
+            "data-augmentation"
+          ],
+          "q": "List common data-augmentation techniques and explain the train/test pattern they follow.",
+          "answer": "Common transforms: **horizontal flips**, **random crops and scales** (e.g. ResNet: resize short side to random L in [256,480], sample 224×224 patches), **color jitter** (randomize contrast/brightness, or PCA-based color offsets), plus rotation, stretching, shearing, lens distortion. They follow the general regularization pattern: **add random noise/transforms at training time**, and **average / marginalize over them at test time** (e.g. average predictions over a fixed set of crops). This is the same pattern as dropout and batch normalization.",
+          "extend": "Data augmentation effectively enlarges the training set for free, improving generalization."
+        },
+        {
+          "type": "mc",
+          "freq": 1,
+          "sources": [
+            "L05"
+          ],
+          "tags": [
+            "fine-tuning"
+          ],
+          "q": "When fine-tuning a pretrained network, what learning rate is a good starting point?",
+          "answer": "About 1/10 of the original learning rate, so pretrained weights are not destroyed.",
+          "options": [
+            {
+              "text": "~1/10 of the original learning rate",
+              "correct": true
+            },
+            {
+              "text": "10x the original learning rate",
+              "correct": false
+            },
+            {
+              "text": "Exactly the same as training from scratch",
+              "correct": false
+            },
+            {
+              "text": "Zero — the weights should never change",
+              "correct": false
+            }
+          ]
+        },
+        {
+          "type": "ai",
+          "freq": 1,
+          "sources": [
+            "AI-generated"
+          ],
+          "tags": [
+            "ensembles"
+          ],
+          "q": "What are model ensembles and roughly how much performance do they add?",
+          "answer": "**Model ensembles** train several independent models and **average their predictions** at test time, typically yielding **~2% extra** accuracy. A cheaper variant uses **snapshots** of a single model at different points in training (e.g. with cyclic learning rates), or keeps a **moving average of parameters** (Polyak averaging) to use at test time."
+        }
+      ]
+    },
+    {
+      "id": "ss26-prediction",
+      "title": "🔮 SS26 Likely Exam Questions (predicted)",
+      "recap": "Predicted, exam-style questions in the professor's format — concept-first, plus a Keras code item where relevant. Not from a past paper; use to rehearse likely SS26 topics.",
+      "questions": [
+        {
+          "type": "open",
+          "freq": 2,
+          "sources": [
+            "SS26 predicted"
+          ],
+          "tags": [
+            "overfitting",
+            "regularization",
+            "SS26 predicted"
+          ],
+          "q": "Your network trains to near-zero training loss while its validation loss climbs after a few epochs.\n(a) What is this phenomenon called, in terms of **optimization** vs **generalization**?\n(b) **Name one technique you would use** to fight it and **one you would NOT use**, and justify each.\n(c) Besides regularization, what single change to the *data* is the most effective cure?",
+          "answer": "**(a)** This is **overfitting**: the model keeps improving **optimization** (fit to the training set) while **generalization** (performance on unseen data) degrades — it is memorizing training-specific patterns.\n\n**(b)** *Would use:* **Dropout** (or **L2 weight decay** / **EarlyStopping**) — Dropout randomly zeros activations during training, breaking co-adaptation and acting like an ensemble of sub-networks, which directly reduces the gap. *Would NOT use:* **increasing capacity** (adding more/wider layers) — a bigger model has *more* memorization capacity and overfits **even faster**; likewise you would not train for *more* epochs.\n\n**(c)** Get **more training data** (or **data augmentation**, which synthesises label-preserving variations for free) — this is the most reliable cure because it forces the model to learn general rather than memorized structure.",
+          "extend": "**EarlyStopping** with `restore_best_weights=True` stops at the minimum validation loss; **L2** adds $\\lambda w^2$ to the loss (weight decay), **L1** adds $\\lambda|w|$ (sparsity)."
+        },
+        {
+          "type": "open",
+          "freq": 2,
+          "sources": [
+            "SS26 predicted"
+          ],
+          "tags": [
+            "optimizers",
+            "adam",
+            "sgd",
+            "SS26 predicted"
+          ],
+          "q": "(a) What benefits does **Adam** offer over plain **SGD**?\n(b) Why are second-order (Newton) methods essentially never used to train deep networks?",
+          "answer": "**(a)** **Adam** combines **momentum** (a running mean of gradients = first moment) with **RMSProp** (a running mean of squared gradients = second moment, giving a **per-parameter adaptive learning rate**) plus **bias correction**. Versus plain SGD it: converges faster and more robustly under **poor conditioning**, powers through **saddle points / local minima** where the gradient is ~0, damps **minibatch noise**, and needs far less learning-rate tuning (default $\\text{lr}\\approx10^{-3}$, $\\beta_1=0.9,\\ \\beta_2=0.999$). Learning-rate decay is also less critical than with SGD+Momentum.\n\n**(b)** A Newton step needs the **Hessian**, which has $O(N^2)$ entries and costs $O(N^3)$ to invert. With $N$ in the tens or hundreds of millions of parameters this is completely infeasible in memory and compute.",
+          "extend": "Adam ≈ RMSProp + momentum + bias correction. SGD+Momentum can still edge out Adam in final generalization on some vision tasks, which is why LR schedules matter there."
+        },
+        {
+          "type": "open",
+          "freq": 2,
+          "sources": [
+            "SS26 predicted"
+          ],
+          "tags": [
+            "code",
+            "keras",
+            "dropout",
+            "regularization",
+            "SS26 predicted"
+          ],
+          "q": "**Fill in the blanks** (rotating variant each visit):",
+          "answer": "```python\nfrom tensorflow.keras import layers, regularizers\nfrom tensorflow.keras.callbacks import EarlyStopping\n\n# model already has: Dense(16, relu, input_shape=(10000,))\nmodel.add(layers.Dropout(0.5))\nmodel.add(layers.Dense(16, activation='relu',\n                       kernel_regularizer=regularizers.L2(0.001)))\nmodel.add(layers.Dropout(0.5))\nmodel.add(layers.Dense(1, activation='sigmoid'))   # binary output\n\nmodel.compile(optimizer='adam',\n              loss='binary_crossentropy',\n              metrics=['acc'])\n\nes = EarlyStopping(monitor='val_loss', patience=3,\n                   restore_best_weights=True)\n\nmodel.fit(x_train, y_train,\n          epochs=20, batch_size=512,\n          validation_data=(x_val, y_val),   # watch generalization\n          callbacks=[es])\n\nloss, acc = model.evaluate(x_test, y_test)    # report on TEST set\nprint('test acc:', acc)\n```\nKey points: **activation on every layer**, **sigmoid + binary_crossentropy** for a 2-class task, **Dropout / L2** to regularize, **validation_data** in `fit`, **EarlyStopping** to stop at the best epoch, and **evaluate on the held-out test set**.",
+          "extend": "Swap `L2(0.001)` for `regularizers.l1_l2(l1=0.001, l2=0.001)` for elastic net. For multi-class use `softmax` + `categorical_crossentropy`.",
+          "variants": [
+            {
+              "note": "Regularization layers",
+              "code": "```python\nfrom tensorflow.keras import layers, regularizers\nmodel.add(layers.Dropout(____(1)))\nmodel.add(layers.Dense(16, activation='relu',\n                       kernel_regularizer=regularizers.____(2)(0.001)))\nmodel.add(layers.Dropout(0.5))\nmodel.add(layers.Dense(1, activation=____(3)))   # binary output\n```",
+              "blanks": [
+                {
+                  "label": "(1)",
+                  "accept": [
+                    "0.5"
+                  ],
+                  "hint": "dropout rate"
+                },
+                {
+                  "label": "(2)",
+                  "accept": [
+                    "L2",
+                    "l2"
+                  ],
+                  "hint": "weight-penalty regularizer"
+                },
+                {
+                  "label": "(3)",
+                  "accept": [
+                    "'sigmoid'",
+                    "sigmoid"
+                  ],
+                  "hint": "binary output activation"
+                }
+              ]
+            },
+            {
+              "note": "Compile, fit & evaluate",
+              "code": "```python\nmodel.compile(optimizer='adam', loss=____(1), metrics=['acc'])\nes = EarlyStopping(monitor=____(2), patience=3, restore_best_weights=True)\nmodel.fit(x_train, y_train, epochs=20, batch_size=512,\n          validation_data=(x_val, y_val), callbacks=[es])\nloss, acc = model.____(3)(x_test, y_test)   # held-out test set\n```",
+              "blanks": [
+                {
+                  "label": "(1)",
+                  "accept": [
+                    "'binary_crossentropy'",
+                    "binary_crossentropy"
+                  ],
+                  "hint": "binary classification loss"
+                },
+                {
+                  "label": "(2)",
+                  "accept": [
+                    "'val_loss'",
+                    "val_loss"
+                  ],
+                  "hint": "EarlyStopping monitor"
+                },
+                {
+                  "label": "(3)",
+                  "accept": [
+                    "evaluate"
+                  ],
+                  "hint": "method that scores on the test set"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,927 @@
+{
+  "id": "ch03",
+  "roman": "III",
+  "title": "Neural Networks I: Build & Train a Classifier",
+  "blurb": "★★★ Core / must-know · The first hands-on neural-network chapter: how a fully-connected classifier is structured, why we pick a particular output activation and loss, and how to actually build, compile, train and evaluate the model on the IMDB (binary) and MNIST (multi-class) datasets. Expect both concept questions and 'write the model' code questions.",
+  "knowledge_points": [
+    {
+      "id": "exam-core",
+      "title": "⭐ Mock Exam & Must-Memorize Templates",
+      "recap": "The professor's code question is ALWAYS 'build/extend a Keras model + compile + fit + evaluate'. Grading points: sensible layers, activation written, correct compile loss/optimizer, fit has validation, evaluate done. Forgetting the activation or compile is fatal; small syntax slips usually are not.",
+      "questions": [
+        {
+          "type": "open",
+          "freq": 3,
+          "sources": [
+            "Mock Q1"
+          ],
+          "tags": [
+            "Loss function",
+            "Cross-entropy",
+            "Softmax"
+          ],
+          "q": "What loss function would you use in a classification task with **6 classes**? Name additionally a loss function that you would **not** use, and explain why.",
+          "answer": "For a 6-class classification task, use **categorical cross-entropy** (for one-hot labels) or **sparse categorical cross-entropy** (for integer labels). These compare the predicted class probabilities (from a **softmax** output layer) against the true labels and penalize wrong predictions.\n\nA loss you would **not** use is **Mean Squared Error (MSE)**: it measures squared differences and suits **regression**, not classification. For multi-class problems MSE does not model class probabilities well and gives slower, less stable learning than cross-entropy. (**Binary** cross-entropy is also wrong here — it is for binary / independent multi-label tasks, not a single 6-class decision.)",
+          "extend": "Memory: softmax + (sparse) categorical cross-entropy is the multi-class default; MSE = regression."
+        },
+        {
+          "type": "open",
+          "freq": 3,
+          "sources": [
+            "Lab03",
+            "L03"
+          ],
+          "tags": [
+            "Keras",
+            "Sequential",
+            "Build model"
+          ],
+          "q": "**Fill in the blanks** to build the two-hidden-layer Keras `Sequential` classifier (a rotating variant each visit):",
+          "answer": "Build layer-by-layer with `model.add(...)`. Only the first layer needs `input_shape`; the output layer's units equal the number of classes.\n\n```python\nfrom tensorflow.keras import models, layers\n\nmodel = models.Sequential()\n# first hidden layer needs input_shape; activation adds non-linearity\nmodel.add(layers.Dense(64, activation='relu', input_shape=(input_dim,)))\nmodel.add(layers.Dense(64, activation='relu'))\n# output layer: #units = #classes; activation chosen by task (see table)\nmodel.add(layers.Dense(num_classes, activation='softmax'))\nmodel.summary()\n```\n\n**Output-layer activation + loss cheat-sheet (memorize):**\n\n| Task | Output activation | Loss |\n|---|---|---|\n| Binary | sigmoid (1 unit) | binary_crossentropy |\n| Multi-class (integer labels) | softmax (N units) | sparse_categorical_crossentropy |\n| Multi-class (one-hot labels) | softmax (N units) | categorical_crossentropy |\n| Regression | none / linear | mse |",
+          "extend": "Grading points: activation on every layer, correct #output units, right output activation for the task.",
+          "variants": [
+            {
+              "note": "layer type & output activation",
+              "code": "```python\nmodel = models.Sequential()\nmodel.add(layers.____(1)(64, activation='relu', input_shape=(input_dim,)))\nmodel.add(layers.Dense(64, activation='relu'))\nmodel.add(layers.Dense(num_classes, activation=____(2)))\nmodel.summary()\n```",
+              "blanks": [
+                {
+                  "label": "(1)",
+                  "accept": [
+                    "Dense",
+                    "dense"
+                  ],
+                  "hint": "fully-connected layer"
+                },
+                {
+                  "label": "(2)",
+                  "accept": [
+                    "'softmax'",
+                    "softmax"
+                  ],
+                  "hint": "multi-class output"
+                }
+              ]
+            },
+            {
+              "note": "container & hidden activation",
+              "code": "```python\nmodel = models.____(1)()\nmodel.add(layers.Dense(64, activation=____(2), input_shape=(input_dim,)))\nmodel.add(layers.Dense(64, activation='relu'))\nmodel.add(layers.Dense(num_classes, activation='softmax'))\n```",
+              "blanks": [
+                {
+                  "label": "(1)",
+                  "accept": [
+                    "Sequential",
+                    "sequential"
+                  ],
+                  "hint": "linear stack of layers"
+                },
+                {
+                  "label": "(2)",
+                  "accept": [
+                    "'relu'",
+                    "relu"
+                  ],
+                  "hint": "hidden non-linearity"
+                }
+              ]
+            },
+            {
+              "note": "input_shape & summary",
+              "code": "```python\nmodel.add(layers.Dense(64, activation='relu', ____(1)=(input_dim,)))\nmodel.add(layers.Dense(num_classes, activation='softmax'))\nmodel.____(2)()\n```",
+              "blanks": [
+                {
+                  "label": "(1)",
+                  "accept": [
+                    "input_shape"
+                  ],
+                  "hint": "only the first layer needs it"
+                },
+                {
+                  "label": "(2)",
+                  "accept": [
+                    "summary"
+                  ],
+                  "hint": "print the layer table"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "open",
+          "freq": 3,
+          "sources": [
+            "Lab03",
+            "L03"
+          ],
+          "tags": [
+            "compile",
+            "fit",
+            "evaluate",
+            "Train/val/test"
+          ],
+          "q": "**Fill in the blanks** to compile, fit (with validation) and evaluate the model (a rotating variant each visit):",
+          "answer": "```python\n# compile: set the training rules (REQUIRED before fit)\nmodel.compile(optimizer='adam',\n              loss='categorical_crossentropy',   # pick by task\n              metrics=['accuracy'])\n\n# fit: train; ALWAYS pass validation_data to watch overfitting\nhistory = model.fit(X_train, y_train,\n                    epochs=10, batch_size=32,\n                    validation_data=(X_val, y_val))\n\n# evaluate: final generalization on the untouched test set\ntest_loss, test_acc = model.evaluate(X_test, y_test)\npreds = model.predict(X_test)   # class probabilities\n```\n\n**Why split into train / validation / test?**\n\n- **Training set** — learns the model weights.\n- **Validation set** — tunes hyperparameters (learning rate, #layers/filters, regularization) and drives model selection / early stopping; detects overfitting.\n- **Test set** — used **only at the very end** to estimate true generalization. It must not influence training or selection, otherwise the estimate is optimistically biased.",
+          "extend": "Memory: train learns params · val tunes hyperparams & early-stop · test = final unbiased estimate.",
+          "variants": [
+            {
+              "note": "compile: optimizer & loss",
+              "code": "```python\nmodel.compile(optimizer=____(1),\n              loss=____(2),\n              metrics=['accuracy'])\n```",
+              "blanks": [
+                {
+                  "label": "(1)",
+                  "accept": [
+                    "'adam'",
+                    "adam"
+                  ],
+                  "hint": "adaptive optimizer"
+                },
+                {
+                  "label": "(2)",
+                  "accept": [
+                    "'categorical_crossentropy'",
+                    "categorical_crossentropy",
+                    "'sparse_categorical_crossentropy'",
+                    "sparse_categorical_crossentropy"
+                  ],
+                  "hint": "multi-class loss"
+                }
+              ]
+            },
+            {
+              "note": "fit: epochs & validation",
+              "code": "```python\nhistory = model.fit(X_train, y_train,\n                    epochs=____(1), batch_size=32,\n                    ____(2)=(X_val, y_val))\n```",
+              "blanks": [
+                {
+                  "label": "(1)",
+                  "accept": [
+                    "10"
+                  ],
+                  "hint": "number of passes"
+                },
+                {
+                  "label": "(2)",
+                  "accept": [
+                    "validation_data"
+                  ],
+                  "hint": "watch overfitting"
+                }
+              ]
+            },
+            {
+              "note": "evaluate & predict",
+              "code": "```python\ntest_loss, test_acc = model.____(1)(X_test, y_test)\npreds = model.____(2)(X_test)\n```",
+              "blanks": [
+                {
+                  "label": "(1)",
+                  "accept": [
+                    "evaluate"
+                  ],
+                  "hint": "final test metrics"
+                },
+                {
+                  "label": "(2)",
+                  "accept": [
+                    "predict"
+                  ],
+                  "hint": "class probabilities"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "classifier-anatomy",
+      "title": "Anatomy of a Classifier Network",
+      "recap": "A classifier is a stack of **fully-connected (Dense)** layers. Hidden layers use **ReLU** (`output = relu(dot(W, input) + b)`); the **output layer** depends on the task. For **binary** classification use **1 unit + sigmoid** (a probability in $[0,1]$); for **multi-class** use **K units + softmax** (K probabilities summing to 1). The loss is paired with the output: **binary cross-entropy** for sigmoid, **categorical cross-entropy** for softmax.",
+      "questions": [
+        {
+          "type": "open",
+          "freq": 3,
+          "sources": [
+            "L03"
+          ],
+          "tags": [
+            "architecture",
+            "activations"
+          ],
+          "q": "Describe the layer structure used for the IMDB binary sentiment classifier, and state the rule that governs one Dense layer's computation.",
+          "answer": "The network is a stack of **fully-connected (Dense)** layers: two hidden layers of **16 units with ReLU**, followed by an **output Dense layer of 1 unit with sigmoid**. Each Dense layer computes $\\text{output} = \\text{relu}(\\text{dot}(W, \\text{input}) + b)$, where $W$ is the **weight matrix** and $b$ the **bias**. The final sigmoid squashes the score into $[0,1]$, interpreted as the probability the review is **positive**.",
+          "extend": "Two hidden layers with ReLU can solve a wide range of problems, including sentiment classification."
+        },
+        {
+          "type": "mc",
+          "freq": 3,
+          "sources": [
+            "L03"
+          ],
+          "tags": [
+            "output-layer",
+            "loss"
+          ],
+          "q": "For a **binary** classification problem, which output-layer + loss combination is correct?",
+          "answer": "A single sigmoid output encodes P(class = 1) and must be paired with binary cross-entropy.",
+          "options": [
+            {
+              "text": "Dense(1, activation='sigmoid') with binary_crossentropy",
+              "correct": true
+            },
+            {
+              "text": "Dense(2, activation='softmax') with mean_squared_error",
+              "correct": false
+            },
+            {
+              "text": "Dense(1, activation='relu') with binary_crossentropy",
+              "correct": false
+            },
+            {
+              "text": "Dense(1, activation='sigmoid') with categorical_crossentropy",
+              "correct": false
+            }
+          ]
+        },
+        {
+          "type": "mc",
+          "freq": 3,
+          "sources": [
+            "L03",
+            "Intro-NN"
+          ],
+          "tags": [
+            "multiclass",
+            "softmax"
+          ],
+          "q": "For the MNIST 10-digit classifier, what does the final layer look like and why?",
+          "answer": "Softmax over 10 units returns 10 probabilities summing to 1, one per class.",
+          "options": [
+            {
+              "text": "Dense(10, activation='softmax') — returns 10 probabilities that sum to 1",
+              "correct": true
+            },
+            {
+              "text": "Dense(1, activation='sigmoid') — returns a single probability",
+              "correct": false
+            },
+            {
+              "text": "Dense(10, activation='relu') — returns 10 raw scores",
+              "correct": false
+            },
+            {
+              "text": "Dense(1, activation='softmax') — returns the class index",
+              "correct": false
+            }
+          ]
+        },
+        {
+          "type": "open",
+          "freq": 1,
+          "sources": [
+            "L03"
+          ],
+          "tags": [
+            "activations"
+          ],
+          "q": "In the 'further experiments', the lab suggests trying **tanh** instead of ReLU. Contrast the two activations at a high level.",
+          "answer": "**ReLU** computes $\\max(0,x)$: it is cheap, does not saturate for positive inputs, and converges faster in practice, but is not zero-centered and can 'die' for negative inputs. **tanh** squashes to $[-1,1]$ and is zero-centered (nicer for optimization) but **saturates** at the extremes, killing gradients. In practice ReLU is the default for hidden layers; tanh rarely beats it.",
+          "extend": "Sigmoid is avoided in hidden layers because saturated neurons kill the gradient and outputs are not zero-centered."
+        },
+        {
+          "type": "ai",
+          "freq": 1,
+          "sources": [
+            "AI-generated"
+          ],
+          "tags": [
+            "concept"
+          ],
+          "q": "Why can't we feed the raw IMDB reviews (lists of integer word indices) directly into a Dense network, and what encoding is used instead?",
+          "answer": "A Dense layer needs **fixed-size floating-point vectors**, but reviews are variable-length integer sequences. The lab **one-hot / multi-hot encodes** each review into a 10000-dimensional vector that is all zeros except a 1 at every word index present (`vectorize_sequences`). This gives a uniform `(samples, 10000)` float tensor a Dense layer can consume."
+        }
+      ]
+    },
+    {
+      "id": "build-train-loop",
+      "title": "Building, Compiling & Training the Model (code)",
+      "recap": "The workflow: **preprocess** data into tensors, **build** a `Sequential` model, **compile** it with an optimizer + loss + metrics, **fit** it on the training data while monitoring a **validation** set, then **evaluate** and **predict** on the test set. Number of **iterations** per epoch = samples / batch_size.",
+      "questions": [
+        {
+          "type": "open",
+          "freq": 3,
+          "sources": [
+            "Lab03"
+          ],
+          "tags": [
+            "code",
+            "build-model"
+          ],
+          "q": "**Fill in the blanks** to build the IMDB binary classifier `Sequential` model (a rotating variant each visit):",
+          "answer": "```python\nfrom keras import models\nfrom keras import layers\n\nmodel = models.Sequential()\nmodel.add(layers.Dense(16, activation='relu', input_shape=(10000,)))\nmodel.add(layers.Dense(16, activation='relu'))\nmodel.add(layers.Dense(1, activation='sigmoid'))\nmodel.summary()\n```\nThe `input_shape=(10000,)` matches the one-hot vocabulary dimension; the final **sigmoid** unit outputs a probability.",
+          "extend": "An equivalent PyTorch model would subclass nn.Module with nn.Linear(10000,16), nn.ReLU(), nn.Linear(16,16), nn.ReLU(), nn.Linear(16,1) and apply torch.sigmoid in forward.",
+          "variants": [
+            {
+              "note": "output units & activation",
+              "code": "```python\nmodel.add(layers.Dense(16, activation='relu', input_shape=(10000,)))\nmodel.add(layers.Dense(16, activation='relu'))\nmodel.add(layers.Dense(____(1), activation=____(2)))\n```",
+              "blanks": [
+                {
+                  "label": "(1)",
+                  "accept": [
+                    "1"
+                  ],
+                  "hint": "one unit for binary"
+                },
+                {
+                  "label": "(2)",
+                  "accept": [
+                    "'sigmoid'",
+                    "sigmoid"
+                  ],
+                  "hint": "probability in [0,1]"
+                }
+              ]
+            },
+            {
+              "note": "hidden activation & input dim",
+              "code": "```python\nmodel = models.Sequential()\nmodel.add(layers.Dense(16, activation=____(1), input_shape=(____(2),)))\nmodel.add(layers.Dense(16, activation='relu'))\nmodel.add(layers.Dense(1, activation='sigmoid'))\n```",
+              "blanks": [
+                {
+                  "label": "(1)",
+                  "accept": [
+                    "'relu'",
+                    "relu"
+                  ],
+                  "hint": "hidden non-linearity"
+                },
+                {
+                  "label": "(2)",
+                  "accept": [
+                    "10000"
+                  ],
+                  "hint": "one-hot vocabulary size"
+                }
+              ]
+            },
+            {
+              "note": "container & layer type",
+              "code": "```python\nmodel = models.____(1)()\nmodel.add(layers.____(2)(16, activation='relu', input_shape=(10000,)))\nmodel.add(layers.Dense(1, activation='sigmoid'))\n```",
+              "blanks": [
+                {
+                  "label": "(1)",
+                  "accept": [
+                    "Sequential",
+                    "sequential"
+                  ],
+                  "hint": "layer stack"
+                },
+                {
+                  "label": "(2)",
+                  "accept": [
+                    "Dense",
+                    "dense"
+                  ],
+                  "hint": "fully-connected layer"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "open",
+          "freq": 3,
+          "sources": [
+            "Lab03"
+          ],
+          "tags": [
+            "code",
+            "compile",
+            "fit"
+          ],
+          "q": "**Fill in the blanks** to compile (RMSprop, BCE) and train the model with a validation set (a rotating variant each visit):",
+          "answer": "```python\nmodel.compile(optimizer='rmsprop',\n              loss='binary_crossentropy',\n              metrics=['accuracy'])\n\nhistory = model.fit(partial_x_train,\n                    partial_y_train,\n                    epochs=20,\n                    batch_size=512,\n                    validation_data=(x_val, y_val))\n```\nThe **optimizer** updates the weights from the loss gradient; **`validation_data`** lets us monitor generalization each epoch. The returned `history.history` dict stores `loss`, `accuracy`, `val_loss`, `val_accuracy`.",
+          "extend": "You can also pass class instances, e.g. optimizers.RMSprop(learning_rate=0.001), for finer control.",
+          "variants": [
+            {
+              "note": "optimizer & loss",
+              "code": "```python\nmodel.compile(optimizer=____(1),\n              loss=____(2),\n              metrics=['accuracy'])\n```",
+              "blanks": [
+                {
+                  "label": "(1)",
+                  "accept": [
+                    "'rmsprop'",
+                    "rmsprop"
+                  ],
+                  "hint": "the requested optimizer"
+                },
+                {
+                  "label": "(2)",
+                  "accept": [
+                    "'binary_crossentropy'",
+                    "binary_crossentropy"
+                  ],
+                  "hint": "binary loss for sigmoid"
+                }
+              ]
+            },
+            {
+              "note": "fit: epochs & batch",
+              "code": "```python\nhistory = model.fit(partial_x_train, partial_y_train,\n                    epochs=____(1),\n                    batch_size=____(2),\n                    validation_data=(x_val, y_val))\n```",
+              "blanks": [
+                {
+                  "label": "(1)",
+                  "accept": [
+                    "20"
+                  ],
+                  "hint": "how many passes"
+                },
+                {
+                  "label": "(2)",
+                  "accept": [
+                    "512"
+                  ],
+                  "hint": "mini-batch size"
+                }
+              ]
+            },
+            {
+              "note": "metrics & validation",
+              "code": "```python\nmodel.compile(optimizer='rmsprop', loss='binary_crossentropy', metrics=[____(1)])\nhistory = model.fit(partial_x_train, partial_y_train, epochs=20, batch_size=512,\n                    ____(2)=(x_val, y_val))\n```",
+              "blanks": [
+                {
+                  "label": "(1)",
+                  "accept": [
+                    "'accuracy'",
+                    "accuracy"
+                  ],
+                  "hint": "tracked metric"
+                },
+                {
+                  "label": "(2)",
+                  "accept": [
+                    "validation_data"
+                  ],
+                  "hint": "held-out monitoring"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "open",
+          "freq": 2,
+          "sources": [
+            "Lab03"
+          ],
+          "tags": [
+            "code",
+            "preprocessing",
+            "numpy"
+          ],
+          "q": "**Fill in the blanks** to complete `vectorize_sequences` (multi-hot 10000-dim vectors) (a rotating variant each visit):",
+          "answer": "```python\nimport numpy as np\n\ndef vectorize_sequences(sequences, dimension=10000):\n    results = np.zeros((len(sequences), dimension))\n    for i, sequence in enumerate(sequences):\n        results[i, sequence] = 1.  # set present word indices to 1\n    return results\n\nx_train = vectorize_sequences(train_data)\nx_test = vectorize_sequences(test_data)\n```\nEach row is all zeros except a **1** at every index that appears in the review. Labels are cast with `np.asarray(train_labels).astype('float32')`.",
+          "variants": [
+            {
+              "note": "allocation & assignment",
+              "code": "```python\ndef vectorize_sequences(sequences, dimension=10000):\n    results = np.____(1)((len(sequences), dimension))\n    for i, sequence in enumerate(sequences):\n        results[i, sequence] = ____(2)   # mark present words\n    return results\n```",
+              "blanks": [
+                {
+                  "label": "(1)",
+                  "accept": [
+                    "zeros"
+                  ],
+                  "hint": "start all-zero matrix"
+                },
+                {
+                  "label": "(2)",
+                  "accept": [
+                    "1.",
+                    "1",
+                    "1.0"
+                  ],
+                  "hint": "set to one"
+                }
+              ]
+            },
+            {
+              "note": "loop & indexing",
+              "code": "```python\ndef vectorize_sequences(sequences, dimension=10000):\n    results = np.zeros((len(sequences), dimension))\n    for i, sequence in ____(1)(sequences):\n        results[i, ____(2)] = 1.\n    return results\n```",
+              "blanks": [
+                {
+                  "label": "(1)",
+                  "accept": [
+                    "enumerate"
+                  ],
+                  "hint": "index + value iterator"
+                },
+                {
+                  "label": "(2)",
+                  "accept": [
+                    "sequence"
+                  ],
+                  "hint": "the word indices for row i"
+                }
+              ]
+            },
+            {
+              "note": "default dim & return",
+              "code": "```python\ndef vectorize_sequences(sequences, dimension=____(1)):\n    results = np.zeros((len(sequences), dimension))\n    for i, sequence in enumerate(sequences):\n        results[i, sequence] = 1.\n    ____(2) results\n```",
+              "blanks": [
+                {
+                  "label": "(1)",
+                  "accept": [
+                    "10000"
+                  ],
+                  "hint": "vocabulary dimension"
+                },
+                {
+                  "label": "(2)",
+                  "accept": [
+                    "return"
+                  ],
+                  "hint": "hand back the matrix"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "open",
+          "freq": 2,
+          "sources": [
+            "Lab03",
+            "Intro-NN"
+          ],
+          "tags": [
+            "calc",
+            "training"
+          ],
+          "q": "MNIST has 60000 training images and you train with `batch_size=128`. How many **iterations** (weight updates) make up one epoch?",
+          "answer": "One epoch = $\\lceil 60000 / 128 \\rceil = 469$ iterations. Each iteration does one forward + backward pass on a **mini-batch** of 128 samples, so it takes ~469 updates to sweep the whole training set once.",
+          "calc": [
+            {
+              "label": "iterations per epoch",
+              "value": 469,
+              "tol": 1
+            }
+          ]
+        },
+        {
+          "type": "open",
+          "freq": 1,
+          "sources": [
+            "Lab03"
+          ],
+          "tags": [
+            "code",
+            "evaluate",
+            "predict"
+          ],
+          "q": "**Fill in the blanks** to retrain briefly, then evaluate and predict on the test set (a rotating variant each visit):",
+          "answer": "```python\nmodel.fit(x_train, y_train, epochs=4, batch_size=512)\nresults = model.evaluate(x_test, y_test)  # [loss, accuracy]\npreds = model.predict(x_test)             # probabilities in [0,1]\n```\n`evaluate` returns the loss and metric on unseen data; `predict` returns the per-sample **sigmoid probability** of the positive class.",
+          "variants": [
+            {
+              "note": "fit epochs & evaluate",
+              "code": "```python\nmodel.fit(x_train, y_train, epochs=____(1), batch_size=512)\nresults = model.____(2)(x_test, y_test)   # [loss, accuracy]\n```",
+              "blanks": [
+                {
+                  "label": "(1)",
+                  "accept": [
+                    "4"
+                  ],
+                  "hint": "early-stop epoch count"
+                },
+                {
+                  "label": "(2)",
+                  "accept": [
+                    "evaluate"
+                  ],
+                  "hint": "test loss + metric"
+                }
+              ]
+            },
+            {
+              "note": "evaluate & predict",
+              "code": "```python\nresults = model.____(1)(x_test, y_test)\npreds = model.____(2)(x_test)             # probabilities in [0,1]\n```",
+              "blanks": [
+                {
+                  "label": "(1)",
+                  "accept": [
+                    "evaluate"
+                  ],
+                  "hint": "compute test metrics"
+                },
+                {
+                  "label": "(2)",
+                  "accept": [
+                    "predict"
+                  ],
+                  "hint": "sigmoid probabilities"
+                }
+              ]
+            },
+            {
+              "note": "batch_size & predict",
+              "code": "```python\nmodel.fit(x_train, y_train, epochs=4, ____(1)=512)\npreds = model.____(2)(x_test)\n```",
+              "blanks": [
+                {
+                  "label": "(1)",
+                  "accept": [
+                    "batch_size"
+                  ],
+                  "hint": "mini-batch size"
+                },
+                {
+                  "label": "(2)",
+                  "accept": [
+                    "predict"
+                  ],
+                  "hint": "per-sample probability"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "gd-loss-overfitting",
+      "title": "Loss, Gradient Descent & Monitoring Overfitting",
+      "recap": "Training minimizes a **loss** (BCE for binary) by **gradient descent**: initialize weights, compute loss, compute its gradient w.r.t. the weights, and step $w^{(n+1)} = w^{(n)} - \\alpha \\frac{dL}{dw}$. Because BCE is non-convex there is no closed form. Always monitor a **validation** set: training loss keeps dropping, but validation loss eventually rises — that gap is **overfitting**.",
+      "questions": [
+        {
+          "type": "open",
+          "freq": 3,
+          "sources": [
+            "L03"
+          ],
+          "tags": [
+            "gradient-descent"
+          ],
+          "q": "State the gradient-descent weight-update rule and explain each symbol and the role of the learning rate.",
+          "answer": "$$w^{(n+1)} = w^{(n)} - \\alpha \\cdot \\frac{dL}{dw}$$\nwhere $\\frac{dL}{dw}$ is the **gradient** of the loss w.r.t. the weights (points in the direction of steepest increase, so we step against it) and $\\alpha$ is the **learning rate**, a positive scalar setting the step size. Too large → the loss diverges; too small → training is very slow. The steps iterate: compute loss → compute gradient → update weights, until convergence.",
+          "extend": "BCE is non-convex, so there is no closed-form optimum — numerical optimizers (SGD, RMSprop, Adam) are required."
+        },
+        {
+          "type": "open",
+          "freq": 2,
+          "sources": [
+            "L03"
+          ],
+          "tags": [
+            "calc",
+            "gradient-descent"
+          ],
+          "q": "A weight is currently $w = 0.5$. With learning rate $\\alpha = 0.1$ and gradient $\\frac{dL}{dw} = 2.0$, what is the updated weight after one gradient-descent step?",
+          "answer": "$w_{new} = 0.5 - 0.1 \\times 2.0 = 0.5 - 0.2 = 0.3$. We move **against** the gradient to reduce the loss.",
+          "calc": [
+            {
+              "label": "updated weight",
+              "value": 0.3,
+              "tol": 0.001
+            }
+          ]
+        },
+        {
+          "type": "open",
+          "freq": 3,
+          "sources": [
+            "Lab03"
+          ],
+          "tags": [
+            "overfitting",
+            "monitoring"
+          ],
+          "q": "In the IMDB experiment the training loss keeps decreasing for all 20 epochs, but validation loss/accuracy peak around epoch 4 then degrade. What is happening, and what is the fix?",
+          "answer": "This is **overfitting**: after a few epochs the model starts memorizing patterns specific to the training data that do not **generalize** to unseen reviews, so validation metrics worsen even though training metrics keep improving. The simplest fix here is **early stopping** — retrain from scratch for only ~4 epochs. This is why you must always **monitor performance on held-out data**, not just training loss.",
+          "extend": "Later chapters add capacity reduction, weight regularization (L1/L2) and dropout to fight overfitting."
+        },
+        {
+          "type": "mc",
+          "freq": 2,
+          "sources": [
+            "L03"
+          ],
+          "tags": [
+            "loss",
+            "bce"
+          ],
+          "q": "Which formula is the **Binary Cross-Entropy** loss for ground truth $y$ and predicted probability $\\hat{y}$?",
+          "answer": "BCE penalizes confident wrong predictions via the negative log-likelihood.",
+          "options": [
+            {
+              "text": "$-y\\log(\\hat{y}) - (1-y)\\log(1-\\hat{y})$",
+              "correct": true
+            },
+            {
+              "text": "$(y - \\hat{y})^2$",
+              "correct": false
+            },
+            {
+              "text": "$|y - \\hat{y}|$",
+              "correct": false
+            },
+            {
+              "text": "$-\\sum_k y_k \\log(\\hat{y}_k)$ over all 10 classes",
+              "correct": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "code-fill-blank",
+      "title": "✍️ Code Fill-in-the-Blank",
+      "recap": "Type the missing Keras API tokens, then Check — each blank turns green/red. Trains the exact code muscle the exam grades: activation on every layer, correct output activation, right loss, validation in fit.",
+      "questions": [
+        {
+          "type": "open",
+          "freq": 3,
+          "sources": [
+            "Lab03"
+          ],
+          "tags": [
+            "Keras",
+            "Build model",
+            "Fill-in"
+          ],
+          "q": "**Fill in the blanks** to build & train a multi-class Keras classifier (a rotating variant each visit):",
+          "answer": "```python\nfrom tensorflow.keras import models, layers\nmodel = models.Sequential()\nmodel.add(layers.Dense(64, activation='relu', input_shape=(input_dim,)))\nmodel.add(layers.Dense(num_classes, activation='softmax'))\nmodel.compile(optimizer='adam',\n              loss='categorical_crossentropy',   # or sparse_ for integer labels\n              metrics=['accuracy'])\nmodel.fit(X_train, y_train, epochs=10, batch_size=32,\n          validation_data=(X_val, y_val))\n```",
+          "extend": "Grading points: relu hidden, softmax output, (sparse) categorical crossentropy, validation_data present.",
+          "variants": [
+            {
+              "note": "layers & activations",
+              "code": "```python\nfrom tensorflow.keras import models, layers\nmodel = models.Sequential()\nmodel.add(layers.Dense(64, activation=____(1), input_shape=(input_dim,)))\nmodel.add(layers.Dense(num_classes, activation=____(2)))\nmodel.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])\nmodel.fit(X_train, y_train, epochs=10, batch_size=32, validation_data=(X_val, y_val))\n```",
+              "blanks": [
+                {
+                  "label": "(1)",
+                  "accept": [
+                    "'relu'",
+                    "relu"
+                  ],
+                  "hint": "hidden activation"
+                },
+                {
+                  "label": "(2)",
+                  "accept": [
+                    "'softmax'",
+                    "softmax"
+                  ],
+                  "hint": "multi-class output"
+                }
+              ]
+            },
+            {
+              "note": "compile & fit",
+              "code": "```python\nfrom tensorflow.keras import models, layers\nmodel = models.Sequential()\nmodel.add(layers.Dense(64, activation='relu', input_shape=(input_dim,)))\nmodel.add(layers.Dense(num_classes, activation='softmax'))\nmodel.compile(optimizer='adam', loss=____(1), metrics=['accuracy'])\nmodel.fit(X_train, y_train, epochs=10, batch_size=32, validation_data=____(2))\n```",
+              "blanks": [
+                {
+                  "label": "(1)",
+                  "accept": [
+                    "'categorical_crossentropy'",
+                    "categorical_crossentropy",
+                    "'sparse_categorical_crossentropy'",
+                    "sparse_categorical_crossentropy"
+                  ],
+                  "hint": "multi-class loss"
+                },
+                {
+                  "label": "(2)",
+                  "accept": [
+                    "(X_val, y_val)",
+                    "(x_val,y_val)"
+                  ],
+                  "hint": "validation set tuple"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ss26-prediction",
+      "title": "🔮 SS26 Likely Exam Questions (predicted)",
+      "recap": "Predicted, exam-style questions in the professor's format — concept-first, plus a Keras code item where relevant. Not from a past paper; use to rehearse likely SS26 topics.",
+      "questions": [
+        {
+          "type": "open",
+          "freq": 2,
+          "sources": [
+            "SS26 predicted"
+          ],
+          "tags": [
+            "loss function",
+            "activation",
+            "cross-entropy",
+            "MSE",
+            "SS26 predicted"
+          ],
+          "q": "You are building a **binary** sentiment classifier (positive/negative). (a) What **output-layer activation** and **loss function** would you use? (b) Name a loss you would **NOT** use here and explain why. (c) Why is an activation function on the *hidden* layers necessary at all?",
+          "answer": "**(a)** Use a single-unit output with a **sigmoid** activation — it outputs $P(\\text{positive})\\in[0,1]$ — paired with **binary cross-entropy** loss, which is the negative log-likelihood $-y\\log\\hat y-(1-y)\\log(1-\\hat y)$ and penalizes confident wrong predictions.\n\n**(b)** A loss you would **not** use is **Mean Squared Error (MSE)**: it suits **regression**, treats the output as a raw number rather than a probability, and gives slower, less stable learning for classification than cross-entropy. (**Categorical** cross-entropy is also wrong — that is for a single multi-class softmax decision, not a 1-unit sigmoid.)\n\n**(c)** Without a non-linear activation, a stack of Dense layers collapses into a **single linear map** ($W_2(W_1x)=Wx$) and can only learn linear boundaries. A non-linearity like **ReLU** on each hidden layer lets the network approximate complex, non-linear functions.",
+          "extend": "Binary → sigmoid + binary_crossentropy; MSE is for regression; hidden non-linearities stop the net collapsing to one linear layer."
+        },
+        {
+          "type": "open",
+          "freq": 3,
+          "sources": [
+            "SS26 predicted"
+          ],
+          "tags": [
+            "Keras",
+            "Sequential",
+            "code",
+            "compile",
+            "fit",
+            "evaluate",
+            "SS26 predicted"
+          ],
+          "q": "**Fill in the blanks** to build, compile, train and evaluate the Keras MNIST 10-digit classifier (a rotating variant each visit):",
+          "answer": "```python\nfrom tensorflow.keras import models, layers\n\n# 1. Build: two hidden ReLU layers; 10-unit softmax output for 10 classes\nmodel = models.Sequential()\nmodel.add(layers.Dense(64, activation='relu', input_shape=(784,)))  # first layer needs input_shape\nmodel.add(layers.Dense(64, activation='relu'))\nmodel.add(layers.Dense(10, activation='softmax'))                  # #units = #classes\n\n# 2. Compile: multi-class pairing = softmax + categorical cross-entropy\nmodel.compile(optimizer='rmsprop',\n              loss='categorical_crossentropy',   # sparse_ if labels are integers\n              metrics=['accuracy'])\n\n# 3. Fit: ALWAYS pass validation_data to watch for overfitting\nhistory = model.fit(x_train, y_train,\n                    epochs=10, batch_size=128,\n                    validation_data=(x_val, y_val))\n\n# 4. Evaluate on the untouched test set\ntest_loss, test_acc = model.evaluate(x_test, y_test)\nprint('Test accuracy:', test_acc)\n```\nGrading points: an **activation on every layer**, **10 softmax units**, matching **categorical_crossentropy** loss, an optimizer, **`validation_data`** in `fit`, and a final **`evaluate`** on the test set. Use `sparse_categorical_crossentropy` if the labels are integers rather than one-hot.",
+          "extend": "Multi-class template: ReLU hidden → softmax(N) output → categorical_crossentropy → fit with validation_data → evaluate on test.",
+          "variants": [
+            {
+              "note": "input dim & output activation",
+              "code": "```python\nmodel.add(layers.Dense(64, activation='relu', input_shape=(____(1),)))\nmodel.add(layers.Dense(64, activation='relu'))\nmodel.add(layers.Dense(10, activation=____(2)))\n```",
+              "blanks": [
+                {
+                  "label": "(1)",
+                  "accept": [
+                    "784"
+                  ],
+                  "hint": "flattened 28x28 image"
+                },
+                {
+                  "label": "(2)",
+                  "accept": [
+                    "'softmax'",
+                    "softmax"
+                  ],
+                  "hint": "10-class output"
+                }
+              ]
+            },
+            {
+              "note": "compile loss & fit validation",
+              "code": "```python\nmodel.compile(optimizer='rmsprop', loss=____(1), metrics=['accuracy'])\nhistory = model.fit(x_train, y_train, epochs=10, batch_size=128,\n                    ____(2)=(x_val, y_val))\n```",
+              "blanks": [
+                {
+                  "label": "(1)",
+                  "accept": [
+                    "'categorical_crossentropy'",
+                    "categorical_crossentropy",
+                    "'sparse_categorical_crossentropy'",
+                    "sparse_categorical_crossentropy"
+                  ],
+                  "hint": "softmax's loss"
+                },
+                {
+                  "label": "(2)",
+                  "accept": [
+                    "validation_data"
+                  ],
+                  "hint": "monitor overfitting"
+                }
+              ]
+            },
+            {
+              "note": "output units & evaluate",
+              "code": "```python\nmodel.add(layers.Dense(____(1), activation='softmax'))\nmodel.compile(optimizer='rmsprop', loss='categorical_crossentropy', metrics=['accuracy'])\ntest_loss, test_acc = model.____(2)(x_test, y_test)\n```",
+              "blanks": [
+                {
+                  "label": "(1)",
+                  "accept": [
+                    "10"
+                  ],
+                  "hint": "#classes = #units"
+                },
+                {
+                  "label": "(2)",
+                  "accept": [
+                    "evaluate"
+                  ],
+                  "hint": "final test metrics"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "open",
+          "freq": 2,
+          "sources": [
+            "SS26 predicted"
+          ],
+          "tags": [
+            "overfitting",
+            "early stopping",
+            "validation",
+            "gradient descent",
+            "SS26 predicted"
+          ],
+          "q": "(a) During training the **training loss keeps falling** but the **validation loss starts rising** after a few epochs — what is happening and what is the simplest fix? (b) Write the **gradient-descent weight-update rule** and explain the role of the learning rate $\\alpha$.",
+          "answer": "**(a)** This is **overfitting**: after a few epochs the network starts memorizing training-specific patterns that do not **generalize**, so held-out (validation) performance degrades even as training loss improves. The simplest fix is **early stopping** — stop (or retrain) at the epoch where validation loss was lowest. This is exactly why you must **monitor a held-out set**, not just the training loss. (Later tools: capacity reduction, L1/L2 regularization, dropout.)\n\n**(b)** $$w^{(n+1)} = w^{(n)} - \\alpha\\,\\frac{dL}{dw}.$$ The gradient $\\frac{dL}{dw}$ points toward steepest *increase* of the loss, so we step **against** it. The **learning rate $\\alpha$** sets the step size: **too large** and the loss diverges/oscillates; **too small** and training is very slow. Because the loss is non-convex there is no closed form — we iterate until convergence.",
+          "extend": "Train↓ but val↑ = overfitting ⇒ early stop / regularize. Update: $w \\leftarrow w-\\alpha\\,dL/dw$; $\\alpha$ too big diverges, too small crawls."
+        }
+      ]
+    }
+  ]
+}

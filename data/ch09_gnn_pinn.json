@@ -1,0 +1,435 @@
+{
+  "id": "ch09",
+  "roman": "IX",
+  "title": "GNNs & Physics-Informed Neural Networks",
+  "blurb": "★ Overview only · Graph Neural Networks generalize deep learning to irregular graph data through message passing and neighborhood aggregation, powering many EDA prediction tasks. Physics-Informed Neural Networks instead embed governing PDEs directly into the loss function to solve differential equations with little or no labeled data.",
+  "knowledge_points": [
+    {
+      "id": "gnn-message-passing",
+      "title": "GNN Message Passing & GCN Layers",
+      "recap": "Many real-world data (social networks, citation graphs, **circuit netlists**) are graphs with arbitrary size, no fixed node ordering and **permutation invariance**. A **GNN** produces a node representation by **aggregating information from neighboring nodes** (message passing). A **GCN** layer updates node features as $H^{(l+1)}=\\sigma(\\tilde{D}^{-1/2}\\tilde{A}\\tilde{D}^{-1/2}H^{(l)}W^{(l)})$. Because parameters are **shared across all nodes**, GNNs are **inductive**: they generalize to unseen nodes and entirely unseen graphs, which is valuable in EDA where labeled data is limited.",
+      "questions": [
+        {
+          "type": "open",
+          "freq": 3,
+          "sources": [
+            "L09"
+          ],
+          "tags": [
+            "message-passing"
+          ],
+          "q": "Explain the main computational idea behind a GNN (e.g. a GCN) and what makes GNNs suitable for graph data.",
+          "answer": "The main idea is **message passing / neighborhood aggregation**: the representation (embedding) of a node is produced by **aggregating features from its neighboring nodes**, and stacking layers lets information propagate over larger neighborhoods. Edge- and graph-level embeddings can be produced similarly. GNNs suit graph data because they respect its unique characteristics: **irregular shape and arbitrary size**, **interdependence of data points**, and **permutation invariance** (no fixed node ordering). Model parameters are **shared across all nodes**, giving GNNs an **inductive capability** to generalize to unseen nodes and even entirely unseen graphs.",
+          "extend": "This inductive generalization is especially useful for EDA problems where labeled data is scarce, e.g. predicting HLS design quality directly from a Data Flow Graph."
+        },
+        {
+          "type": "mc",
+          "freq": 2,
+          "sources": [
+            "L09"
+          ],
+          "tags": [
+            "eda"
+          ],
+          "q": "Which of the following is a genuine EDA application of GNNs discussed in the lecture?",
+          "answer": "Predicting HLS/RTL design quality from a Data Flow Graph, plus signoff power, routing congestion and reliability prediction.",
+          "options": [
+            {
+              "text": "Predicting HLS design quality directly from a Data Flow Graph (e.g. IronMan).",
+              "correct": true
+            },
+            {
+              "text": "Signoff power prediction on unseen netlists (e.g. ECO-GNN).",
+              "correct": true
+            },
+            {
+              "text": "Routing congestion and circuit reliability degradation prediction.",
+              "correct": true
+            },
+            {
+              "text": "Tokenizing Verilog source code into byte-pair sub-words.",
+              "correct": false
+            }
+          ],
+          "extend": "GNNs give graph embeddings that generalize across different graphs and provide fast, accurate quality predictions that can accelerate RL-based design-space exploration."
+        },
+        {
+          "type": "open",
+          "freq": 2,
+          "sources": [
+            "L09",
+            "Lab09"
+          ],
+          "tags": [
+            "code",
+            "gcn"
+          ],
+          "q": "**Fill in the blanks** (rotating variant each visit): two-layer GCN for node classification on Cora (PyTorch Geometric).",
+          "answer": "```python\nimport torch.nn as nn\nimport torch.nn.functional as F\nfrom torch_geometric.nn import GCNConv\n\nclass GCN(nn.Module):\n    def __init__(self, input_dim, hidden_dim, output_dim):\n        super().__init__()\n        self.conv1 = GCNConv(input_dim, hidden_dim)\n        self.conv2 = GCNConv(hidden_dim, output_dim)\n\n    def forward(self, x, edge_index):\n        x = self.conv1(x, edge_index)   # aggregate over 1-hop neighbors\n        x = F.relu(x)                    # non-linearity\n        x = self.conv2(x, edge_index)   # second hop -> class logits\n        return x\n```\nEach `GCNConv` performs the normalized neighborhood aggregation internally, taking the node feature matrix `x` and the connectivity `edge_index`. The first layer produces hidden embeddings from 1-hop neighbors, **ReLU** adds non-linearity, and the second layer outputs one logit per class. Training uses `F.cross_entropy` on `out[data.train_mask]` with an Adam optimizer.",
+          "extend": "Swapping GCNConv for GATConv (Graph Attention) lets the model learn attention weights over neighbors; TSNE on the final embeddings shows same-class nodes clustering.",
+          "variants": [
+            {
+              "note": "Layer construction (__init__)",
+              "code": "```python\nself.conv1 = ____(1)(input_dim, hidden_dim)\nself.conv2 = ____(2)(hidden_dim, ____(3))\n```",
+              "blanks": [
+                {
+                  "label": "(1)",
+                  "accept": [
+                    "GCNConv"
+                  ],
+                  "hint": "PyG graph-conv layer"
+                },
+                {
+                  "label": "(2)",
+                  "accept": [
+                    "GCNConv"
+                  ],
+                  "hint": "same layer type, second hop"
+                },
+                {
+                  "label": "(3)",
+                  "accept": [
+                    "output_dim",
+                    "out_channels"
+                  ],
+                  "hint": "one logit per class"
+                }
+              ]
+            },
+            {
+              "note": "Forward pass flow",
+              "code": "```python\ndef forward(self, x, edge_index):\n    x = self.conv1(x, ____(1))   # 1-hop aggregation\n    x = F.____(2)(x)              # non-linearity\n    x = self.conv2(x, edge_index)\n    return x\n```",
+              "blanks": [
+                {
+                  "label": "(1)",
+                  "accept": [
+                    "edge_index"
+                  ],
+                  "hint": "graph connectivity tensor"
+                },
+                {
+                  "label": "(2)",
+                  "accept": [
+                    "relu"
+                  ],
+                  "hint": "activation between the two convs"
+                }
+              ]
+            },
+            {
+              "note": "Training step",
+              "code": "```python\noptimizer.____(1)()\nout = model(data.x, data.edge_index)\nloss = F.____(2)(out[data.train_mask], data.y[data.train_mask])\nloss.____(3)()\noptimizer.____(4)()\n```",
+              "blanks": [
+                {
+                  "label": "(1)",
+                  "accept": [
+                    "zero_grad",
+                    "zero_grad()"
+                  ],
+                  "hint": "clear old gradients"
+                },
+                {
+                  "label": "(2)",
+                  "accept": [
+                    "cross_entropy"
+                  ],
+                  "hint": "classification loss"
+                },
+                {
+                  "label": "(3)",
+                  "accept": [
+                    "backward",
+                    "backward()"
+                  ],
+                  "hint": "backprop"
+                },
+                {
+                  "label": "(4)",
+                  "accept": [
+                    "step",
+                    "step()"
+                  ],
+                  "hint": "apply the update"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "pinn-physics-loss",
+      "title": "Physics-Informed Neural Networks",
+      "recap": "A **PINN** integrates physical laws into the network by encoding them in the **loss function**. The total loss combines a **physics loss (PDE residual)** — an unsupervised regularizer asserting the solution satisfies the governing PDE at interior collocation points — with a **supervised/boundary loss** enforcing boundary and initial conditions (and any labeled data). This makes the network a mesh-free functional approximation of the PDE solution that can be trained with **limited or even no labeled data**. Limitations include high cost from many collocation points, difficulty with high-order/high-dimensional or stiff PDEs, and balancing the physics vs. data loss terms.",
+      "questions": [
+        {
+          "type": "open",
+          "freq": 3,
+          "sources": [
+            "L09"
+          ],
+          "tags": [
+            "physics-loss"
+          ],
+          "q": "From an ML perspective, what are the two roles of the physics loss in a PINN, and how does this differ from a purely data-driven neural network?",
+          "answer": "The **physics loss (PDE residual)** plays two roles: (1) it is an **unsupervised regularizer** that injects prior physical knowledge, and (2) it is an **alternative objective function** that can train the model even when **limited or no labeled data** is available. A purely data-driven network trained only with MSE fits the experimental points well but **fails to generalize away from the training data**. By adding the known governing PDE (e.g. a damped harmonic oscillator) directly into the loss, the PINN is constrained to be physically consistent everywhere, not just near the data. Mathematically, the physics loss asserts the solution is consistent with the PDE while a supervised loss enforces the boundary/initial conditions so the solution is unique.",
+          "extend": "Applications span forward, inverse and equation-discovery problems: flow-field reconstruction from sparse sensors, heat-sink design optimization, weather and battery modeling."
+        },
+        {
+          "type": "open",
+          "freq": 2,
+          "sources": [
+            "L09",
+            "Lab09"
+          ],
+          "tags": [
+            "code",
+            "pde-residual"
+          ],
+          "q": "**Fill in the blanks** (rotating variant each visit): physics-informed loss for the 1D Poisson equation $u_{xx}=-f(x)$, $u(0)=u(1)=0$.",
+          "answer": "```python\ndef compute_loss(model, x_interior, x_boundary, f_func):\n    x_interior.requires_grad = True\n    u = model(x_interior)\n    # first and second derivatives via autograd\n    u_x  = torch.autograd.grad(u, x_interior,\n              grad_outputs=torch.ones_like(u), create_graph=True)[0]\n    u_xx = torch.autograd.grad(u_x, x_interior,\n              grad_outputs=torch.ones_like(u_x), create_graph=True)[0]\n    residual = u_xx + f_func(x_interior)        # PDE residual R(x)\n    physics_loss  = torch.mean(residual**2)      # enforce PDE inside domain\n    boundary_loss = torch.mean(model(x_boundary)**2)  # u(0)=u(1)=0\n    return physics_loss + boundary_loss\n```\nThe **physics loss** drives the PDE residual $R(x)=u_{xx}+f(x)$ toward zero at interior collocation points, and the **boundary loss** forces the network output to zero at $x=0,1$. Note that the second derivative $u_{xx}$ is obtained by **automatic differentiation** of the network output with respect to its input, using `create_graph=True` so the loss remains differentiable.",
+          "extend": "Extensions include the time-dependent 1D heat equation, adding noise to $f(x)$, or moving to 2D PDEs; the trained network is compared against the exact solution $u=\\frac{1}{\\pi^2}\\sin(\\pi x)$.",
+          "variants": [
+            {
+              "note": "Autograd derivatives",
+              "code": "```python\nu_x  = torch.autograd.____(1)(u, x_interior,\n          grad_outputs=torch.ones_like(u), create_graph=____(2))[0]\nu_xx = torch.autograd.grad(u_x, x_interior,\n          grad_outputs=torch.ones_like(u_x), create_graph=True)[0]\n```",
+              "blanks": [
+                {
+                  "label": "(1)",
+                  "accept": [
+                    "grad"
+                  ],
+                  "hint": "autograd derivative fn"
+                },
+                {
+                  "label": "(2)",
+                  "accept": [
+                    "True"
+                  ],
+                  "hint": "keep graph so loss stays differentiable"
+                }
+              ]
+            },
+            {
+              "note": "Residual and loss terms",
+              "code": "```python\nresidual = ____(1) + f_func(x_interior)          # PDE residual R(x)\nphysics_loss  = torch.mean(____(2)**2)           # enforce PDE inside\nboundary_loss = torch.mean(model(____(3))**2)    # u(0)=u(1)=0\nreturn physics_loss + boundary_loss\n```",
+              "blanks": [
+                {
+                  "label": "(1)",
+                  "accept": [
+                    "u_xx"
+                  ],
+                  "hint": "second derivative term"
+                },
+                {
+                  "label": "(2)",
+                  "accept": [
+                    "residual"
+                  ],
+                  "hint": "square the PDE residual"
+                },
+                {
+                  "label": "(3)",
+                  "accept": [
+                    "x_boundary"
+                  ],
+                  "hint": "the boundary points"
+                }
+              ]
+            },
+            {
+              "note": "Setup and total loss",
+              "code": "```python\nx_interior.____(1) = True\nu = model(x_interior)\n# ... derivatives via autograd ...\nreturn physics_loss + ____(2)\n```",
+              "blanks": [
+                {
+                  "label": "(1)",
+                  "accept": [
+                    "requires_grad"
+                  ],
+                  "hint": "needed to differentiate wrt input"
+                },
+                {
+                  "label": "(2)",
+                  "accept": [
+                    "boundary_loss"
+                  ],
+                  "hint": "the boundary-condition term"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "mc",
+          "freq": 1,
+          "sources": [
+            "L09"
+          ],
+          "tags": [
+            "limitations"
+          ],
+          "q": "Which of the following are stated limitations of PINNs?",
+          "answer": "High cost from many collocation points, poor handling of high-order/high-dimensional and stiff PDEs, and difficulty balancing physics vs data loss.",
+          "options": [
+            {
+              "text": "They require vast numbers of collocation points for the PDE residual, raising computational cost.",
+              "correct": true
+            },
+            {
+              "text": "They are not very effective for higher-order or high-dimensional PDEs and struggle with stiff equations.",
+              "correct": true
+            },
+            {
+              "text": "Balancing the physics loss against the data loss is difficult.",
+              "correct": true
+            },
+            {
+              "text": "They can only be trained if a large fully-labeled dataset is available.",
+              "correct": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ss26-prediction",
+      "title": "🔮 SS26 Likely Exam Questions (predicted)",
+      "recap": "Predicted, exam-style concept questions in the professor's format. Not from a past paper; use to rehearse likely SS26 topics.",
+      "questions": [
+        {
+          "type": "open",
+          "freq": 2,
+          "sources": [
+            "SS26 predicted"
+          ],
+          "tags": [
+            "message-passing",
+            "eda",
+            "SS26 predicted"
+          ],
+          "q": "(a) Explain what is meant by **message passing** in a GNN. (b) A circuit netlist can be represented as a graph. Give two properties of graph data that make **GNNs** more suitable than a standard MLP or CNN for such EDA tasks.",
+          "answer": "(a) **Message passing** (neighborhood aggregation) means each node updates its embedding by **aggregating feature information from its neighboring nodes** (and edges); stacking $L$ layers lets information propagate over an $L$-hop neighborhood. (b) Graphs have (1) **irregular shape and arbitrary size** with **no fixed node ordering** — GNNs are **permutation-invariant** and handle variable-size inputs, whereas an MLP/CNN expects fixed-size, grid-ordered input; and (2) **interdependent data points** connected by edges — a netlist's connectivity is exactly this structure. Because GNN parameters are **shared across all nodes**, the model is **inductive** and generalizes to unseen nodes and entirely unseen circuits, which matters when labeled EDA data is scarce.",
+          "extend": "This is why GNNs are used for HLS quality prediction, signoff power (ECO-GNN), routing congestion and reliability prediction directly on the netlist/data-flow graph."
+        },
+        {
+          "type": "open",
+          "freq": 2,
+          "sources": [
+            "SS26 predicted"
+          ],
+          "tags": [
+            "physics-loss",
+            "pinn",
+            "SS26 predicted"
+          ],
+          "q": "A **PINN** is trained to solve a PDE. (a) What are the two terms that make up its loss and what does each enforce? (b) Why can a PINN be trained with **little or no labeled data**, and how is the PDE residual computed inside the network?",
+          "answer": "(a) The loss combines a **physics loss (PDE residual)**, which drives the residual $R(x)=$ (governing PDE) toward zero at interior **collocation points**, enforcing that the solution obeys the physics inside the domain; and a **boundary/initial-condition loss** (plus any labeled-data loss) that pins the solution at the boundaries so it is unique. (b) The physics loss acts as an **unsupervised regularizer / alternative objective** — it encodes known physical laws rather than requiring target labels, so the network can be supervised by the equation itself instead of data. The required derivatives (e.g. $u_{xx}$) are obtained by **automatic differentiation** of the network output with respect to its input, so no numerical mesh is needed.",
+          "extend": "A purely data-driven net trained only on sparse points fails to generalize away from the data; the physics loss constrains the PINN to be physically consistent everywhere. Limitations: many collocation points are costly, and high-order/high-dimensional/stiff PDEs and loss balancing are hard."
+        },
+        {
+          "type": "mc",
+          "freq": 2,
+          "sources": [
+            "SS26 predicted"
+          ],
+          "tags": [
+            "pinn",
+            "gnn",
+            "SS26 predicted"
+          ],
+          "q": "Which of the following statements about GNNs and PINNs are correct?",
+          "answer": "GNNs aggregate over neighbors and are permutation-invariant/inductive; PINNs embed the PDE in the loss and use autodiff; PINNs do not require a large labeled dataset.",
+          "options": [
+            {
+              "text": "A GNN's parameters are shared across nodes, giving it inductive capability to generalize to unseen graphs.",
+              "correct": true
+            },
+            {
+              "text": "A PINN embeds the governing PDE into its loss function and obtains derivatives via automatic differentiation.",
+              "correct": true
+            },
+            {
+              "text": "A PINN can be trained with little or no labeled data because the physics loss provides the supervisory signal.",
+              "correct": true
+            },
+            {
+              "text": "A GNN requires the input graphs to all have the same fixed number of nodes in a fixed order.",
+              "correct": false
+            }
+          ],
+          "extend": "GNN/PINN labs in this course use PyTorch (e.g. PyTorch Geometric, torch.autograd), not Keras."
+        }
+      ]
+    },
+    {
+      "id": "ss26-prediction",
+      "title": "🔮 SS26 Likely Exam Questions (predicted)",
+      "recap": "Predicted, exam-style concept questions in the professor's format. Not from a past paper; use to rehearse likely SS26 topics.",
+      "questions": [
+        {
+          "type": "open",
+          "freq": 2,
+          "sources": [
+            "SS26 predicted"
+          ],
+          "tags": [
+            "message-passing",
+            "eda",
+            "SS26 predicted"
+          ],
+          "q": "(a) Explain what is meant by **message passing** in a GNN. (b) A circuit netlist can be represented as a graph. Give two properties of graph data that make **GNNs** more suitable than a standard MLP or CNN for such EDA tasks.",
+          "answer": "(a) **Message passing** (neighborhood aggregation) means each node updates its embedding by **aggregating feature information from its neighboring nodes** (and edges); stacking $L$ layers lets information propagate over an $L$-hop neighborhood. (b) Graphs have (1) **irregular shape and arbitrary size** with **no fixed node ordering** — GNNs are **permutation-invariant** and handle variable-size inputs, whereas an MLP/CNN expects fixed-size, grid-ordered input; and (2) **interdependent data points** connected by edges — a netlist's connectivity is exactly this structure. Because GNN parameters are **shared across all nodes**, the model is **inductive** and generalizes to unseen nodes and entirely unseen circuits, which matters when labeled EDA data is scarce.",
+          "extend": "This is why GNNs are used for HLS quality prediction, signoff power (ECO-GNN), routing congestion and reliability prediction directly on the netlist/data-flow graph."
+        },
+        {
+          "type": "open",
+          "freq": 2,
+          "sources": [
+            "SS26 predicted"
+          ],
+          "tags": [
+            "physics-loss",
+            "pinn",
+            "SS26 predicted"
+          ],
+          "q": "A **PINN** is trained to solve a PDE. (a) What are the two terms that make up its loss and what does each enforce? (b) Why can a PINN be trained with **little or no labeled data**, and how is the PDE residual computed inside the network?",
+          "answer": "(a) The loss combines a **physics loss (PDE residual)**, which drives the residual $R(x)=$ (governing PDE) toward zero at interior **collocation points**, enforcing that the solution obeys the physics inside the domain; and a **boundary/initial-condition loss** (plus any labeled-data loss) that pins the solution at the boundaries so it is unique. (b) The physics loss acts as an **unsupervised regularizer / alternative objective** — it encodes known physical laws rather than requiring target labels, so the network can be supervised by the equation itself instead of data. The required derivatives (e.g. $u_{xx}$) are obtained by **automatic differentiation** of the network output with respect to its input, so no numerical mesh is needed.",
+          "extend": "A purely data-driven net trained only on sparse points fails to generalize away from the data; the physics loss constrains the PINN to be physically consistent everywhere. Limitations: many collocation points are costly, and high-order/high-dimensional/stiff PDEs and loss balancing are hard."
+        },
+        {
+          "type": "mc",
+          "freq": 2,
+          "sources": [
+            "SS26 predicted"
+          ],
+          "tags": [
+            "pinn",
+            "gnn",
+            "SS26 predicted"
+          ],
+          "q": "Which of the following statements about GNNs and PINNs are correct?",
+          "answer": "GNNs aggregate over neighbors and are permutation-invariant/inductive; PINNs embed the PDE in the loss and use autodiff; PINNs do not require a large labeled dataset.",
+          "options": [
+            {
+              "text": "A GNN's parameters are shared across nodes, giving it inductive capability to generalize to unseen graphs.",
+              "correct": true
+            },
+            {
+              "text": "A PINN embeds the governing PDE into its loss function and obtains derivatives via automatic differentiation.",
+              "correct": true
+            },
+            {
+              "text": "A PINN can be trained with little or no labeled data because the physics loss provides the supervisory signal.",
+              "correct": true
+            },
+            {
+              "text": "A GNN requires the input graphs to all have the same fixed number of nodes in a fixed order.",
+              "correct": false
+            }
+          ],
+          "extend": "GNN/PINN labs in this course use PyTorch (e.g. PyTorch Geometric, torch.autograd), not Keras."
+        }
+      ]
+    }
+  ]
+}

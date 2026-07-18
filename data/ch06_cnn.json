@@ -1,0 +1,893 @@
+{
+  "id": "ch06",
+  "roman": "VI",
+  "title": "Convolutional Neural Networks",
+  "blurb": "★★★ Core / must-know · Convolutional Neural Networks (CNNs) exploit the spatial structure of images through **weight sharing** and local **filters**, replacing the billions of parameters a fully connected layer would need. This chapter covers convolution and pooling, feature (activation) maps, spatial-size arithmetic, parameter counting, and building a CNN in code.",
+  "knowledge_points": [
+    {
+      "id": "exam-cnn",
+      "title": "⭐ Mock Exam: Build/Extend a CNN + CNN Concepts",
+      "recap": "CNN is a guaranteed exam topic: one code question (extend a Keras CNN with Conv2D/Flatten/Dense/BatchNormalization then compile/fit/evaluate) and one concept+calculation question (conv vs FC, padding, output-size formula).",
+      "questions": [
+        {
+          "type": "open",
+          "freq": 3,
+          "sources": [
+            "Mock Q2"
+          ],
+          "tags": [
+            "CNN",
+            "Build model",
+            "BatchNorm",
+            "Keras"
+          ],
+          "q": "**Fill in the blanks** to extend, compile and evaluate the CNNs (rotating variant each visit):",
+          "answer": "```python\n# (a) extend model1: one more Conv2D + a fully connected head\nmodel1.add(Conv2D(num_convolutional_filters, (3, 3), activation='relu'))\nmodel1.add(Flatten())\nmodel1.add(Dense(64, activation='relu'))\nmodel1.add(Dense(output_dimension, activation='sigmoid'))\n\n# (b) extend model2: add BatchNormalization (needs no parameters)\nmodel2.add(BatchNormalization())\nmodel2.add(Conv2D(num_convolutional_filters, (3, 3), activation='relu'))\nmodel2.add(Flatten())\nmodel2.add(Dense(64, activation='relu'))\nmodel2.add(Dense(output_dimension, activation='sigmoid'))\n\n# (c) compile + fit both\nfor model in [model1, model2]:\n    model.compile(optimizer='adam', loss='binary_crossentropy')\n    model.fit(X_train, y_train, epochs=10, batch_size=32,\n              validation_data=(X_val, y_val))\n\n# (d) evaluate + compare\nloss1, acc1 = model1.evaluate(X_test, y_test)\nloss2, acc2 = model2.evaluate(X_test, y_test)\nprint('better:', 'model1' if acc1 > acc2 else 'model2')\n```\n\nBatchNormalization takes no arguments. Use `binary_crossentropy` + `adam`; always pass `validation_data`; compare on the **test** set.",
+          "extend": "Grading points: extra Conv2D with activation, Flatten before Dense, BatchNormalization(), compile with loss+optimizer, fit with validation, evaluate on test.",
+          "variants": [
+            {
+              "note": "Extend model1: Conv2D head",
+              "code": "```python\n# (a) extend model1 with one more Conv2D + a Dense head\nmodel1.add(____(1)(num_convolutional_filters, (3, 3), activation=____(2)))\nmodel1.add(Flatten())\nmodel1.add(Dense(64, activation='relu'))\nmodel1.add(Dense(output_dimension, activation=____(3)))\n```",
+              "blanks": [
+                {
+                  "label": "(1)",
+                  "accept": [
+                    "Conv2D",
+                    "conv2d"
+                  ],
+                  "hint": "convolution layer"
+                },
+                {
+                  "label": "(2)",
+                  "accept": [
+                    "'relu'",
+                    "relu"
+                  ],
+                  "hint": "hidden activation"
+                },
+                {
+                  "label": "(3)",
+                  "accept": [
+                    "'sigmoid'",
+                    "sigmoid"
+                  ],
+                  "hint": "binary output activation"
+                }
+              ]
+            },
+            {
+              "note": "Extend model2: BatchNorm block",
+              "code": "```python\n# (b) extend model2 with BatchNormalization + Dense head\nmodel2.add(____(1)())            # normalize activations, no params\nmodel2.add(Conv2D(num_convolutional_filters, (3, 3), activation='relu'))\nmodel2.add(____(2)())            # 3-D feature maps -> 1-D vector\nmodel2.add(Dense(64, activation='relu'))\nmodel2.add(Dense(output_dimension, activation='sigmoid'))\n```",
+              "blanks": [
+                {
+                  "label": "(1)",
+                  "accept": [
+                    "BatchNormalization",
+                    "batchnormalization",
+                    "BatchNorm"
+                  ],
+                  "hint": "normalization layer (no params)"
+                },
+                {
+                  "label": "(2)",
+                  "accept": [
+                    "Flatten",
+                    "flatten"
+                  ],
+                  "hint": "3D -> 1D layer"
+                }
+              ]
+            },
+            {
+              "note": "Compile / fit / evaluate",
+              "code": "```python\n# (c)+(d) compile, fit, evaluate\nmodel.compile(optimizer='adam', loss=____(1))\nmodel.fit(X_train, y_train, epochs=10, batch_size=32,\n          validation_data=(____(2), y_val))\nloss, acc = model.____(3)(X_test, y_test)\n```",
+              "blanks": [
+                {
+                  "label": "(1)",
+                  "accept": [
+                    "'binary_crossentropy'",
+                    "binary_crossentropy"
+                  ],
+                  "hint": "binary loss"
+                },
+                {
+                  "label": "(2)",
+                  "accept": [
+                    "X_val",
+                    "x_val"
+                  ],
+                  "hint": "validation inputs"
+                },
+                {
+                  "label": "(3)",
+                  "accept": [
+                    "evaluate"
+                  ],
+                  "hint": "test-set scoring method"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "open",
+          "freq": 3,
+          "sources": [
+            "Mock Q3"
+          ],
+          "tags": [
+            "CNN",
+            "Padding",
+            "Output size"
+          ],
+          "q": "(a) What benefits do convolutional layers offer over fully connected layers for images?\n(b) Why is padding necessary when applying a strided filter?\n(c) Given input **64×64×3**, applying **7 filters of size 6×6** with **stride 2** and **padding 2**, what is the output volume?",
+          "answer": "**(a) Benefits:** **local connectivity** (filters see small receptive fields matching image structure); **parameter sharing** (one filter slides over the whole image → far fewer parameters, less overfitting); **translation invariance** (a feature is detected anywhere); **computational efficiency**.\n\n**(b) Padding:** without it feature maps shrink after every conv (faster with stride > 1). Padding lets you **control output size** ('same' keeps H×W), stops **border pixels** being under-used, and prevents maps from vanishing after several layers.\n\n**(c) Output size** uses $\\left\\lfloor\\frac{W-F+2P}{S}\\right\\rfloor+1$ with $W=64, F=6, P=2, S=2$:\n\n$$\\frac{64-6+4}{2}+1=\\frac{62}{2}+1=31+1=32.$$\n\nDepth = number of filters = 7. **Output volume: 32 × 32 × 7.**",
+          "extend": "Memory: output side = (W−F+2P)/S + 1; depth = #filters.",
+          "calc": [
+            {
+              "label": "Output H = W",
+              "value": 32,
+              "tol": 0
+            },
+            {
+              "label": "Output depth",
+              "value": 7,
+              "tol": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "conv-vs-fc-feature-maps",
+      "title": "From Fully Connected to Convolution: Filters & Feature Maps",
+      "recap": "A fully connected (FC) layer flattens an image (e.g. 32x32x3 -> 3072x1) and connects every pixel to every neuron, destroying spatial structure and exploding the parameter count (a 1000x1000x3 image into a 1000-neuron layer needs ~3 billion weights). The **convolution layer** fixes this with **weight sharing**: a small **filter** (e.g. 5x5x3) that always extends the *full depth* of the input is slid over the image, computing a dot product at each location. Each filter produces one 2D **activation map** (feature map). Stacking K filters gives an output volume of depth K (e.g. six 5x5x3 filters on a 32x32x3 input -> 28x28x6). A ConvNet stacks CONV+ReLU (+POOL) layers so early layers detect edges and later layers detect higher-level features.",
+      "questions": [
+        {
+          "type": "mc",
+          "freq": 3,
+          "sources": [
+            "L06"
+          ],
+          "q": "Why are convolution layers preferred over fully connected layers for image input?",
+          "answer": "They use **weight sharing** and local filters, which drastically reduces parameters and **preserves the spatial structure** of the image.",
+          "options": [
+            {
+              "text": "They preserve spatial structure and share weights, cutting parameters versus an FC layer",
+              "correct": true
+            },
+            {
+              "text": "They always have more parameters, which increases accuracy",
+              "correct": false
+            },
+            {
+              "text": "They flatten the image to a 1D vector before processing",
+              "correct": false
+            },
+            {
+              "text": "They connect every input pixel to every output neuron",
+              "correct": false
+            }
+          ],
+          "tags": [
+            "convolution",
+            "weight-sharing"
+          ]
+        },
+        {
+          "type": "open",
+          "freq": 3,
+          "sources": [
+            "L06"
+          ],
+          "q": "What is an **activation map** (feature map), and how is it produced? What determines the depth of a convolution layer's output volume?",
+          "answer": "An **activation map** is the 2D output produced by **convolving one filter** over all spatial locations of the input: at each position the filter takes a dot product with a local patch (plus bias), yielding one number, and sliding it across the image builds the full map. A filter always spans the **full depth** of the input (e.g. a 5x5x3 filter on a 3-channel image is a 75-dimensional dot product). The output volume's **depth equals the number of filters K**: e.g. six 5x5x3 filters on a 32x32x3 image give a 28x28x6 volume.",
+          "extend": "This is why a ConvNet is described as a *sequence of convolution layers interspersed with activation functions* (e.g. 32x32x3 -> CONV/ReLU -> 28x28x6 -> CONV/ReLU -> 24x24x10).",
+          "tags": [
+            "feature-maps",
+            "filters",
+            "depth"
+          ]
+        },
+        {
+          "type": "mc",
+          "freq": 2,
+          "sources": [
+            "L06"
+          ],
+          "q": "A 32x32x3 input is convolved with a single 5x5x3 filter (stride 1, no padding). How many parameters (weights) does that one filter use for a single dot product, ignoring bias?",
+          "answer": "A 5x5x3 filter has $5 \\times 5 \\times 3 = 75$ weights (a 75-dimensional dot product); adding a bias gives 76.",
+          "options": [
+            {
+              "text": "75",
+              "correct": true
+            },
+            {
+              "text": "25",
+              "correct": false
+            },
+            {
+              "text": "3072",
+              "correct": false
+            },
+            {
+              "text": "28",
+              "correct": false
+            }
+          ],
+          "tags": [
+            "filters",
+            "parameters"
+          ]
+        },
+        {
+          "type": "ai",
+          "freq": 1,
+          "sources": [
+            "AI-generated"
+          ],
+          "q": "Explain the difference between **translation equivariance** (convolution layers) and **translation invariance** (pooling layers) in one or two sentences each.",
+          "answer": "**Translation equivariance** (convolution): if the input shifts, the output feature map shifts by the same amount, $f(x(i-t)) = y(i-t)$ — the *response moves with the feature*. **Translation invariance** (pooling): a small shift of the input leaves the pooled output essentially unchanged, $f(x(i-t)) = y(i)$ — the layer becomes *insensitive to exact position*. Convolution detects *where* a feature is; pooling makes the representation robust to small translations.",
+          "tags": [
+            "pooling",
+            "invariance"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "spatial-size-pooling",
+      "title": "Output Spatial Size, Padding, Pooling & Parameter Counting",
+      "recap": "The spatial size of a convolution output is given by $\\left(\\frac{W - F + 2P}{S}\\right) + 1$, where W is the input size, F the filter size, S the stride and P the zero-padding. To *preserve* spatial size with stride 1, use $P = (F-1)/2$ (F=3 -> P=1, F=5 -> P=2). The number of learnable parameters in a conv layer is $(F \\cdot F \\cdot C_{in} + 1) \\cdot K$ (the +1 is the per-filter bias). **Pooling** (e.g. 2x2 max pooling, stride 2) downsamples each activation map independently, making the representation smaller, cheaper, and more translation-invariant; common settings are F=2/S=2 or F=3/S=2.",
+      "questions": [
+        {
+          "type": "open",
+          "freq": 3,
+          "sources": [
+            "L06"
+          ],
+          "q": "Input volume 32x32x3 is passed through a conv layer of 10 filters of size 5x5, stride 1, pad 2. Compute (a) the output spatial width/height and (b) the total number of parameters in the layer.",
+          "answer": "**(a) Output spatial size:** using $\\left(\\frac{W-F+2P}{S}\\right)+1 = \\frac{32-5+2\\cdot2}{1}+1 = \\frac{31}{1}+1 = 32$, so the output volume is **32x32x10** (depth = number of filters).\n\n**(b) Parameters:** each filter has $5\\cdot5\\cdot3 + 1 = 76$ weights (+1 bias), and there are 10 filters, so $76 \\times 10 = \\mathbf{760}$ parameters.",
+          "calc": [
+            {
+              "label": "Output spatial size (W)",
+              "value": 32,
+              "tol": 0
+            },
+            {
+              "label": "Total parameters",
+              "value": 760,
+              "tol": 0
+            }
+          ],
+          "tags": [
+            "output-size",
+            "parameters",
+            "padding"
+          ]
+        },
+        {
+          "type": "open",
+          "freq": 2,
+          "sources": [
+            "L06"
+          ],
+          "q": "AlexNet CONV1: input 227x227x3, 96 filters of size 11x11, stride 4, no padding. Compute the output spatial size and the number of parameters in this layer.",
+          "answer": "**Output spatial size:** $\\frac{227-11}{4}+1 = \\frac{216}{4}+1 = 54+1 = 55$, giving an output volume of **55x55x96**.\n\n**Parameters:** $(11\\cdot11\\cdot3)\\cdot96 = 363 \\cdot 96 \\approx 35\\text{K}$ (about 34,848 without bias).",
+          "calc": [
+            {
+              "label": "Output spatial size",
+              "value": 55,
+              "tol": 0
+            },
+            {
+              "label": "Parameters (thousands)",
+              "value": 35,
+              "tol": 1
+            }
+          ],
+          "tags": [
+            "output-size",
+            "alexnet",
+            "parameters"
+          ]
+        },
+        {
+          "type": "mc",
+          "freq": 3,
+          "sources": [
+            "L06"
+          ],
+          "q": "You apply a 3x3 filter with stride 1 to a 7x7 input and want the output to stay 7x7. How much zero padding P is required?",
+          "answer": "$P = (F-1)/2 = (3-1)/2 = 1$. With one pixel of border padding, $\\frac{7-3+2\\cdot1}{1}+1 = 7$, so the spatial size is preserved.",
+          "options": [
+            {
+              "text": "P = 1",
+              "correct": true
+            },
+            {
+              "text": "P = 0",
+              "correct": false
+            },
+            {
+              "text": "P = 2",
+              "correct": false
+            },
+            {
+              "text": "P = 3",
+              "correct": false
+            }
+          ],
+          "tags": [
+            "padding",
+            "output-size"
+          ]
+        },
+        {
+          "type": "mc",
+          "freq": 2,
+          "sources": [
+            "L06"
+          ],
+          "q": "What does a max-pooling layer do in a CNN?",
+          "answer": "It **downsamples each activation map independently** (e.g. 2x2 max pool, stride 2 keeps the max of each 2x2 window), making the representation smaller and more manageable and adding a degree of **translation invariance**. It has no learnable parameters.",
+          "options": [
+            {
+              "text": "Downsamples each feature map independently, shrinking the representation and adding translation invariance",
+              "correct": true
+            },
+            {
+              "text": "Adds trainable weights to increase model capacity",
+              "correct": false
+            },
+            {
+              "text": "Connects every neuron to the full input volume",
+              "correct": false
+            },
+            {
+              "text": "Increases the spatial resolution of the feature maps",
+              "correct": false
+            }
+          ],
+          "tags": [
+            "pooling"
+          ]
+        },
+        {
+          "type": "open",
+          "freq": 1,
+          "sources": [
+            "L06"
+          ],
+          "q": "A 7x7 input is convolved with a 3x3 filter at stride 3 (no padding). Why does this configuration fail, and what does the formula predict?",
+          "answer": "The formula gives $\\frac{7-3}{3}+1 = \\frac{4}{3}+1 = 2.33$, which is **not an integer** — the filter does not fit evenly, so the 3x3 filter *cannot be applied* on a 7x7 input with stride 3. Valid stride/filter/padding combinations must yield an integer output size.",
+          "calc": [
+            {
+              "label": "Formula result (non-integer)",
+              "value": 2.33,
+              "tol": 0.01
+            }
+          ],
+          "tags": [
+            "stride",
+            "output-size"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "build-cnn-code",
+      "title": "Building a CNN in Code",
+      "recap": "A basic image classifier stacks convolution layers (each followed by a **ReLU** activation), then **flattens** the 3D feature volume into a vector and finishes with fully connected (Dense) layers, ending in a **softmax** for multi-class classification. **MaxPooling** shrinks feature maps and **Dropout** regularizes. In the lab this is built with Keras' `Sequential` API (the analogous PyTorch model subclasses `nn.Module` with `nn.Conv2d`, `nn.MaxPool2d` and a `forward` method). Note that Keras `Conv2D` expects channels-last input `(H, W, C)` e.g. `(28, 28, 1)` for MNIST.",
+      "questions": [
+        {
+          "type": "open",
+          "freq": 3,
+          "sources": [
+            "Lab06"
+          ],
+          "q": "**Fill in the blanks** to build the model (rotating variant each visit):",
+          "answer": "```python\nfrom keras.models import Sequential\nfrom keras.layers import Conv2D, Dense, Activation, Flatten\n\nmodel = Sequential()\n# 1st Conv layer (needs input_shape on the first layer only)\nmodel.add(Conv2D(filters=32, kernel_size=(3, 3),\n                 input_shape=(28, 28, 1), activation='relu'))\n# 2nd Conv layer\nmodel.add(Conv2D(filters=32, kernel_size=(3, 3), activation='relu'))\n# Flatten 3D feature maps -> 1D vector before Dense layers\nmodel.add(Flatten())\nmodel.add(Dense(units=128))\nmodel.add(Activation('relu'))\n# Prediction layer: 10 classes with softmax\nmodel.add(Dense(units=10))\nmodel.add(Activation('softmax'))\n\nmodel.compile(loss='categorical_crossentropy',\n              optimizer='adam', metrics=['accuracy'])\n```\nKey points: only the **first layer** declares `input_shape=(28, 28, 1)`; you must **Flatten** before Dense layers; the last layer uses **softmax** (10 units) with **categorical_crossentropy** for classification.",
+          "extend": "The equivalent PyTorch model:\n```python\nimport torch.nn as nn\nimport torch.nn.functional as F\n\nclass VanillaCNN(nn.Module):\n    def __init__(self):\n        super().__init__()\n        self.conv1 = nn.Conv2d(1, 32, kernel_size=3)   # 28->26\n        self.conv2 = nn.Conv2d(32, 32, kernel_size=3)  # 26->24\n        self.fc1 = nn.Linear(32 * 24 * 24, 128)\n        self.fc2 = nn.Linear(128, 10)\n    def forward(self, x):\n        x = F.relu(self.conv1(x))\n        x = F.relu(self.conv2(x))\n        x = x.flatten(1)\n        x = F.relu(self.fc1(x))\n        return self.fc2(x)   # softmax handled by CrossEntropyLoss\n```",
+          "tags": [
+            "keras",
+            "pytorch",
+            "build-model"
+          ],
+          "variants": [
+            {
+              "note": "First conv layer & input_shape",
+              "code": "```python\nmodel = Sequential()\nmodel.add(Conv2D(filters=32, kernel_size=(3, 3),\n                 input_shape=____(1), activation=____(2)))\nmodel.add(Conv2D(filters=32, kernel_size=(3, 3), activation='relu'))\n```",
+              "blanks": [
+                {
+                  "label": "(1)",
+                  "accept": [
+                    "(28,28,1)",
+                    "(28, 28, 1)"
+                  ],
+                  "hint": "MNIST channels-last shape"
+                },
+                {
+                  "label": "(2)",
+                  "accept": [
+                    "'relu'",
+                    "relu"
+                  ],
+                  "hint": "conv activation"
+                }
+              ]
+            },
+            {
+              "note": "Flatten + Dense head",
+              "code": "```python\nmodel.add(Flatten())\nmodel.add(Dense(units=____(1)))\nmodel.add(Activation('relu'))\nmodel.add(Dense(units=____(2)))\nmodel.add(Activation(____(3)))\n```",
+              "blanks": [
+                {
+                  "label": "(1)",
+                  "accept": [
+                    "128"
+                  ],
+                  "hint": "hidden units"
+                },
+                {
+                  "label": "(2)",
+                  "accept": [
+                    "10"
+                  ],
+                  "hint": "number of classes"
+                },
+                {
+                  "label": "(3)",
+                  "accept": [
+                    "'softmax'",
+                    "softmax"
+                  ],
+                  "hint": "multi-class output"
+                }
+              ]
+            },
+            {
+              "note": "2nd conv, flatten & compile",
+              "code": "```python\nmodel.add(____(1)(filters=32, kernel_size=(3, 3), activation='relu'))  # 2nd conv\nmodel.add(____(2)())            # before Dense layers\nmodel.compile(loss=____(3),\n              optimizer='adam', metrics=['accuracy'])\n```",
+              "blanks": [
+                {
+                  "label": "(1)",
+                  "accept": [
+                    "Conv2D",
+                    "conv2d"
+                  ],
+                  "hint": "convolution layer"
+                },
+                {
+                  "label": "(2)",
+                  "accept": [
+                    "Flatten",
+                    "flatten"
+                  ],
+                  "hint": "3D -> 1D layer"
+                },
+                {
+                  "label": "(3)",
+                  "accept": [
+                    "'categorical_crossentropy'",
+                    "categorical_crossentropy"
+                  ],
+                  "hint": "multi-class loss"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "open",
+          "freq": 3,
+          "sources": [
+            "Lab06"
+          ],
+          "q": "**Fill in the blanks** to add pooling and dropout (rotating variant each visit):",
+          "answer": "Insert a **MaxPooling2D** layer *after the convolutional block* (to downsample the feature maps) and **Dropout** *after pooling* and again *after the Dense(128)* layer (to regularize):\n```python\nfrom keras.layers import MaxPooling2D, Dropout\n\nmodel.add(Conv2D(32, (3, 3), input_shape=(28, 28, 1), activation='relu'))\nmodel.add(Conv2D(32, (3, 3), activation='relu'))\nmodel.add(MaxPooling2D(pool_size=(2, 2)))   # downsample\nmodel.add(Dropout(rate=0.25))               # regularize conv features\nmodel.add(Flatten())\nmodel.add(Dense(128))\nmodel.add(Activation('relu'))\nmodel.add(Dropout(rate=0.5))                 # regularize dense layer\nmodel.add(Dense(10))\nmodel.add(Activation('softmax'))\n```\n**Pooling** goes after the conv layers to make the representation smaller and translation-tolerant; **Dropout** goes after pooling and after the dense layer to reduce overfitting by randomly zeroing activations during training.",
+          "tags": [
+            "pooling",
+            "dropout",
+            "regularization"
+          ],
+          "variants": [
+            {
+              "note": "Where pooling & dropout go",
+              "code": "```python\nmodel.add(Conv2D(32, (3, 3), input_shape=(28, 28, 1), activation='relu'))\nmodel.add(Conv2D(32, (3, 3), activation='relu'))\nmodel.add(____(1)(pool_size=(2, 2)))   # downsample\nmodel.add(____(2)(rate=0.25))          # regularize conv features\nmodel.add(Flatten())\n```",
+              "blanks": [
+                {
+                  "label": "(1)",
+                  "accept": [
+                    "MaxPooling2D",
+                    "MaxPool2D",
+                    "maxpooling2d"
+                  ],
+                  "hint": "downsampling layer"
+                },
+                {
+                  "label": "(2)",
+                  "accept": [
+                    "Dropout",
+                    "dropout"
+                  ],
+                  "hint": "regularization layer"
+                }
+              ]
+            },
+            {
+              "note": "Dense-head regularization",
+              "code": "```python\nmodel.add(Flatten())\nmodel.add(Dense(128))\nmodel.add(Activation(____(1)))\nmodel.add(Dropout(rate=____(2)))       # regularize dense layer\nmodel.add(Dense(10))\nmodel.add(Activation(____(3)))\n```",
+              "blanks": [
+                {
+                  "label": "(1)",
+                  "accept": [
+                    "'relu'",
+                    "relu"
+                  ],
+                  "hint": "hidden activation"
+                },
+                {
+                  "label": "(2)",
+                  "accept": [
+                    "0.5"
+                  ],
+                  "hint": "dense dropout rate"
+                },
+                {
+                  "label": "(3)",
+                  "accept": [
+                    "'softmax'",
+                    "softmax"
+                  ],
+                  "hint": "multi-class output"
+                }
+              ]
+            },
+            {
+              "note": "Sizes & rates",
+              "code": "```python\nmodel.add(Conv2D(32, (____(1), 3), activation='relu'))\nmodel.add(MaxPooling2D(pool_size=(____(2), 2)))\nmodel.add(Dropout(____(3)))            # regularize conv features\n```",
+              "blanks": [
+                {
+                  "label": "(1)",
+                  "accept": [
+                    "3"
+                  ],
+                  "hint": "kernel height"
+                },
+                {
+                  "label": "(2)",
+                  "accept": [
+                    "2"
+                  ],
+                  "hint": "pool window height"
+                },
+                {
+                  "label": "(3)",
+                  "accept": [
+                    "0.25"
+                  ],
+                  "hint": "conv dropout rate"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "open",
+          "freq": 1,
+          "sources": [
+            "Lab06"
+          ],
+          "q": "In the vanilla MNIST CNN, the input is 28x28x1 and both conv layers use 3x3 filters with stride 1 and no padding. What spatial size does the tensor have entering the Flatten layer, and how many features does Flatten produce?",
+          "answer": "Each 3x3 valid convolution reduces the spatial size by 2: $28 \\to 26 \\to 24$. So the tensor entering Flatten is **24x24x32**, and Flatten produces $24 \\times 24 \\times 32 = \\mathbf{18432}$ features.",
+          "calc": [
+            {
+              "label": "Spatial size before Flatten",
+              "value": 24,
+              "tol": 0
+            },
+            {
+              "label": "Flattened feature count",
+              "value": 18432,
+              "tol": 0
+            }
+          ],
+          "tags": [
+            "output-size",
+            "flatten"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "code-fill-blank",
+      "title": "✍️ Code Fill-in-the-Blank",
+      "recap": "Reconstruct a CNN and the Mock-Q2 extension by typing the missing layers.",
+      "questions": [
+        {
+          "type": "open",
+          "freq": 3,
+          "sources": [
+            "Lab06"
+          ],
+          "tags": [
+            "CNN",
+            "Build model",
+            "Fill-in"
+          ],
+          "q": "**Fill in the blanks** to build the model (rotating variant each visit):",
+          "answer": "```python\nfrom keras.models import Sequential\nfrom keras.layers import Conv2D, MaxPooling2D, Flatten, Dense\nmodel = Sequential()\nmodel.add(Conv2D(32, (3,3), activation='relu', input_shape=(28,28,1)))\nmodel.add(MaxPooling2D(pool_size=(2,2)))\nmodel.add(Flatten())\nmodel.add(Dense(128, activation='relu'))\nmodel.add(Dense(10, activation='softmax'))\n```",
+          "extend": "Order: Conv2D → (Pool) → Flatten → Dense. Never forget Flatten before Dense.",
+          "variants": [
+            {
+              "note": "Identify the layers",
+              "code": "```python\nmodel.add(____(1)(32, (3,3), activation='relu', input_shape=(28,28,1)))\nmodel.add(____(2)(pool_size=(2,2)))     # halve spatial size\nmodel.add(____(3)())                     # 3-D feature maps -> 1-D vector\nmodel.add(Dense(128, activation='relu'))\nmodel.add(Dense(10, activation=____(4)))\n```",
+              "blanks": [
+                {
+                  "label": "(1)",
+                  "accept": [
+                    "Conv2D",
+                    "conv2d"
+                  ],
+                  "hint": "convolution layer"
+                },
+                {
+                  "label": "(2)",
+                  "accept": [
+                    "MaxPooling2D",
+                    "MaxPool2D",
+                    "maxpooling2d"
+                  ],
+                  "hint": "downsampling layer"
+                },
+                {
+                  "label": "(3)",
+                  "accept": [
+                    "Flatten",
+                    "flatten"
+                  ],
+                  "hint": "3D -> 1D layer"
+                },
+                {
+                  "label": "(4)",
+                  "accept": [
+                    "'softmax'",
+                    "softmax"
+                  ],
+                  "hint": "multi-class output"
+                }
+              ]
+            },
+            {
+              "note": "Fill the hyperparameters",
+              "code": "```python\nmodel.add(Conv2D(____(1), (____(2), 3), activation=____(3), input_shape=(28,28,1)))\nmodel.add(MaxPooling2D(pool_size=(2,2)))\nmodel.add(Flatten())\nmodel.add(Dense(128, activation='relu'))\n```",
+              "blanks": [
+                {
+                  "label": "(1)",
+                  "accept": [
+                    "32"
+                  ],
+                  "hint": "number of filters"
+                },
+                {
+                  "label": "(2)",
+                  "accept": [
+                    "3"
+                  ],
+                  "hint": "kernel height"
+                },
+                {
+                  "label": "(3)",
+                  "accept": [
+                    "'relu'",
+                    "relu"
+                  ],
+                  "hint": "conv activation"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "open",
+          "freq": 3,
+          "sources": [
+            "Mock Q2"
+          ],
+          "tags": [
+            "CNN",
+            "BatchNorm",
+            "Fill-in"
+          ],
+          "q": "**Fill in the blanks** for the Mock-Q2 BatchNorm extension (rotating variant each visit):",
+          "answer": "```python\nmodel2.add(BatchNormalization())\nmodel2.add(Conv2D(num_filters, (3,3), activation='relu'))\nmodel2.add(Flatten())\nmodel2.add(Dense(64, activation='relu'))\nmodel2.add(Dense(output_dim, activation='sigmoid'))\n```",
+          "extend": "BatchNormalization() takes no args; Flatten before the Dense head.",
+          "variants": [
+            {
+              "note": "Normalize + flatten",
+              "code": "```python\nmodel2.add(____(1)())            # normalize activations, needs no parameters\nmodel2.add(Conv2D(num_filters, (3,3), activation='relu'))\nmodel2.add(____(2)())            # 3-D -> 1-D\nmodel2.add(Dense(64, activation='relu'))\nmodel2.add(Dense(output_dim, activation=____(3)))\n```",
+              "blanks": [
+                {
+                  "label": "(1)",
+                  "accept": [
+                    "BatchNormalization",
+                    "batchnormalization",
+                    "BatchNorm"
+                  ],
+                  "hint": "normalization layer (no params)"
+                },
+                {
+                  "label": "(2)",
+                  "accept": [
+                    "Flatten",
+                    "flatten"
+                  ],
+                  "hint": "3D -> 1D layer"
+                },
+                {
+                  "label": "(3)",
+                  "accept": [
+                    "'sigmoid'",
+                    "sigmoid"
+                  ],
+                  "hint": "output activation"
+                }
+              ]
+            },
+            {
+              "note": "Conv + activation",
+              "code": "```python\nmodel2.add(BatchNormalization())\nmodel2.add(____(1)(num_filters, (3,3), activation=____(2)))\nmodel2.add(Flatten())\nmodel2.add(Dense(64, activation='relu'))\nmodel2.add(Dense(output_dim, activation='sigmoid'))\n```",
+              "blanks": [
+                {
+                  "label": "(1)",
+                  "accept": [
+                    "Conv2D",
+                    "conv2d"
+                  ],
+                  "hint": "convolution layer"
+                },
+                {
+                  "label": "(2)",
+                  "accept": [
+                    "'relu'",
+                    "relu"
+                  ],
+                  "hint": "conv activation"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ss26-prediction",
+      "title": "🔮 SS26 Likely Exam Questions (predicted)",
+      "recap": "Predicted, exam-style questions in the professor's format — concept-first, plus a Keras code item where relevant. Not from a past paper; use to rehearse likely SS26 topics.",
+      "questions": [
+        {
+          "type": "open",
+          "freq": 2,
+          "sources": [
+            "SS26 predicted"
+          ],
+          "tags": [
+            "output-size",
+            "calc",
+            "padding",
+            "SS26 predicted"
+          ],
+          "q": "A convolution layer receives an input volume of **128×128×3** and applies **16 filters of size 5×5** with **stride 3** and **padding 1**.\n(a) Compute the output volume (width, height and depth).\n(b) How many **learnable parameters** does the layer have (include biases)?",
+          "answer": "**(a)** Using $\\left\\lfloor\\frac{W-F+2P}{S}\\right\\rfloor+1$ with $W=128,\\ F=5,\\ P=1,\\ S=3$:\n$$\\left\\lfloor\\frac{128-5+2}{3}\\right\\rfloor+1=\\left\\lfloor\\frac{125}{3}\\right\\rfloor+1=41+1=42.$$\nDepth = number of filters = **16**, so the output volume is **42×42×16**.\n\n**(b)** Each filter spans the full input depth: $5\\times5\\times3=75$ weights $+\\,1$ bias $=76$. With 16 filters: $76\\times16=\\mathbf{1216}$ parameters.",
+          "calc": [
+            {
+              "label": "Output H = W",
+              "value": 42,
+              "tol": 0
+            },
+            {
+              "label": "Total parameters",
+              "value": 1216,
+              "tol": 0
+            }
+          ],
+          "extend": "Note the **floor**: $125/3=41.67$ rounds down to 41, so the output side is 42. Parameter count is independent of input spatial size thanks to **weight sharing**."
+        },
+        {
+          "type": "open",
+          "freq": 2,
+          "sources": [
+            "SS26 predicted"
+          ],
+          "tags": [
+            "pooling",
+            "padding",
+            "invariance",
+            "SS26 predicted"
+          ],
+          "q": "(a) Why is a **pooling** layer used in a CNN, and does it add trainable parameters?\n(b) **Name one situation where you would use 'same' padding and one where you would NOT (or would use 'valid'),** and explain why.\n(c) In one sentence, how does pooling differ from a strided convolution for downsampling?",
+          "answer": "**(a)** **Pooling** (e.g. 2×2 max pool, stride 2) **downsamples each feature map independently**, shrinking the representation so it is cheaper to compute and store, and it grants a degree of **translation invariance** (small shifts of the input leave the pooled output nearly unchanged). It has **no learnable parameters**.\n\n**(b)** *Would use 'same':* when stacking **many conv layers** and you want to **preserve spatial size** so feature maps do not shrink to nothing and **border pixels** are not under-used (with stride 1, $P=(F-1)/2$). *Would NOT use 'same' / use 'valid':* when you deliberately want to **reduce spatial size** (e.g. a downsampling/stride>1 stage) or when padding artificial zeros at the border would be undesirable.\n\n**(c)** Pooling downsamples with a **fixed, non-learned** aggregation (max/avg), whereas a **strided convolution** downsamples with **learned** filters.",
+          "extend": "Max pooling keeps the strongest activation in each window; average pooling smooths. Common settings: F=2/S=2 or F=3/S=2."
+        },
+        {
+          "type": "open",
+          "freq": 2,
+          "sources": [
+            "SS26 predicted"
+          ],
+          "tags": [
+            "code",
+            "keras",
+            "build-model",
+            "SS26 predicted"
+          ],
+          "q": "**Fill in the blanks** to extend the CNN into a 10-class classifier (rotating variant each visit):",
+          "answer": "```python\nfrom keras.layers import MaxPooling2D, Flatten, Dense, Dropout\n\n# model already ends in Conv2D(...) blocks producing 3-D feature maps\nmodel.add(MaxPooling2D(pool_size=(2, 2)))   # downsample\nmodel.add(Flatten())                        # 3-D -> 1-D before Dense\nmodel.add(Dense(128, activation='relu'))\nmodel.add(Dropout(0.5))                     # regularize the dense head\nmodel.add(Dense(10, activation='softmax'))  # 10 classes\n\nmodel.compile(optimizer='adam',\n              loss='categorical_crossentropy',\n              metrics=['accuracy'])\n\nmodel.fit(X_train, y_train,\n          epochs=10, batch_size=64,\n          validation_data=(X_val, y_val))\n\nloss, acc = model.evaluate(X_test, y_test)  # test-set performance\nprint('test acc:', acc)\n```\nGrading points: **Flatten before Dense**, **activation on each layer**, **softmax(10) + categorical_crossentropy** for multi-class, **Dropout/pooling** for regularization/downsampling, **validation_data** in `fit`, **evaluate on the test set**.",
+          "extend": "If labels are integers (not one-hot), use `sparse_categorical_crossentropy`. For binary output use `Dense(1, 'sigmoid')` + `binary_crossentropy`.",
+          "variants": [
+            {
+              "note": "Pooling + dense head",
+              "code": "```python\nmodel.add(____(1)(pool_size=(2, 2)))   # downsample\nmodel.add(____(2)())                    # 3-D -> 1-D before Dense\nmodel.add(Dense(128, activation='relu'))\nmodel.add(Dropout(0.5))\nmodel.add(Dense(10, activation=____(3)))  # 10 classes\n```",
+              "blanks": [
+                {
+                  "label": "(1)",
+                  "accept": [
+                    "MaxPooling2D",
+                    "MaxPool2D",
+                    "maxpooling2d"
+                  ],
+                  "hint": "downsampling layer"
+                },
+                {
+                  "label": "(2)",
+                  "accept": [
+                    "Flatten",
+                    "flatten"
+                  ],
+                  "hint": "3D -> 1D layer"
+                },
+                {
+                  "label": "(3)",
+                  "accept": [
+                    "'softmax'",
+                    "softmax"
+                  ],
+                  "hint": "multi-class output"
+                }
+              ]
+            },
+            {
+              "note": "Compile / fit / evaluate",
+              "code": "```python\nmodel.compile(optimizer=____(1),\n              loss=____(2),\n              metrics=['accuracy'])\nmodel.fit(X_train, y_train, epochs=10, batch_size=64,\n          validation_data=(X_val, y_val))\nloss, acc = model.____(3)(X_test, y_test)\n```",
+              "blanks": [
+                {
+                  "label": "(1)",
+                  "accept": [
+                    "'adam'",
+                    "adam"
+                  ],
+                  "hint": "optimizer"
+                },
+                {
+                  "label": "(2)",
+                  "accept": [
+                    "'categorical_crossentropy'",
+                    "categorical_crossentropy"
+                  ],
+                  "hint": "multi-class loss"
+                },
+                {
+                  "label": "(3)",
+                  "accept": [
+                    "evaluate"
+                  ],
+                  "hint": "test-set scoring method"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
