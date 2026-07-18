@@ -9,7 +9,7 @@ import vue from "@astrojs/vue";
 // /fofm-exam-qa/preview) without touching the production root. Defaults to the
 // production base. All internal links use this via import.meta.env.BASE_URL.
 export default defineConfig({
-  site: "https://YOUR-USERNAME.github.io",
+  site: "https://zimeng0420.github.io",
   base: process.env.SITE_BASE || "/ml-exam-qa",
   trailingSlash: "ignore",
   integrations: [vue()],
