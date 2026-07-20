@@ -100,6 +100,27 @@
       "title": "ML & Agentic AI Applications in EDA",
       "file": "ch12_eda_apps.json",
       "status": "ready"
+    },
+    {
+      "id": "ch13",
+      "roman": "M1",
+      "title": "📝 Mock Exam A — Full paper",
+      "file": "ch13_mock_a.json",
+      "status": "ready"
+    },
+    {
+      "id": "ch14",
+      "roman": "M2",
+      "title": "📝 Mock Exam B — Full paper",
+      "file": "ch14_mock_b.json",
+      "status": "ready"
+    },
+    {
+      "id": "ch15",
+      "roman": "M3",
+      "title": "📝 Mock Exam C — Full paper",
+      "file": "ch15_mock_c.json",
+      "status": "ready"
     }
   ]
 }

@@ -1,0 +1,233 @@
+{
+  "id": "ch15",
+  "roman": "M3",
+  "title": "📝 Mock Exam C — Full paper (exam-style)",
+  "blurb": "A complete timed-style mock exam in the professor's format: mostly concept short-answers, one Keras CNN code question, and a CNN calculation. Covers the whole syllabus with emphasis on NN fundamentals + CNN.",
+  "knowledge_points": [
+    {
+      "id": "mockc-p1-part-1-nn-cnn-core",
+      "title": "Part 1 — NN & CNN core",
+      "recap": "Exam-style questions covering this section — attempt each, then reveal the model answer.",
+      "questions": [
+        {
+          "type": "open",
+          "freq": 3,
+          "sources": [
+            "Mock C"
+          ],
+          "tags": [
+            "nn-fundamentals",
+            "activation"
+          ],
+          "q": "**Activation functions.** (a) Why does a neural network need a **non-linear** activation function at all — what happens if every layer uses only linear activations? (b) Give one concrete advantage of **ReLU** over the **sigmoid**. (c) Explain the **dying ReLU** problem and name one variant that mitigates it.",
+          "answer": "(a) Without non-linearity, a stack of linear layers is mathematically equivalent to a **single linear transformation** ($W_2(W_1x)=Wx$), so the network — no matter how deep — can only learn **linear functions** and cannot model complex/non-linear decision boundaries. (b) ReLU does not saturate for positive inputs, so it largely avoids the **vanishing-gradient** problem that sigmoid suffers (sigmoid gradients are near-zero at the tails), giving faster convergence; it is also cheaper to compute. (c) **Dying ReLU**: if a neuron's pre-activation stays negative for all inputs, its output is always 0 and its gradient is always 0, so it stops learning permanently. Mitigated by **Leaky ReLU** (or PReLU / ELU), which allows a small negative slope so the gradient is never exactly zero."
+        },
+        {
+          "type": "mc",
+          "freq": 3,
+          "sources": [
+            "Mock C"
+          ],
+          "tags": [
+            "cnn",
+            "equivariance",
+            "invariance"
+          ],
+          "q": "**CNN properties.** A convolutional layer (weight sharing, sliding kernel) has a key symmetry property with respect to input shifts. Which statement is correct?",
+          "answer": "Convolution is **translation-equivariant**: shift the input and the feature map shifts by the same amount. Full translation **invariance** (output unchanged by shifts) is only approximately achieved *after* pooling / global pooling. So (a) is correct: convolution gives equivariance, and pooling adds a degree of invariance.",
+          "options": [
+            {
+              "text": "Convolution is translation-equivariant; pooling then introduces a degree of translation invariance.",
+              "correct": true
+            },
+            {
+              "text": "Convolution is fully translation-invariant on its own, so pooling is unnecessary.",
+              "correct": false
+            },
+            {
+              "text": "Convolution is neither equivariant nor invariant to shifts; only fully-connected layers are.",
+              "correct": false
+            },
+            {
+              "text": "Equivariance and invariance mean the same thing for a CNN.",
+              "correct": false
+            }
+          ],
+          "extend": "**Receptive field**: the region of the input that influences one output unit. Stacking conv layers (or using stride/dilation) enlarges the receptive field, letting deeper units 'see' more context."
+        },
+        {
+          "type": "open",
+          "freq": 3,
+          "sources": [
+            "Mock C"
+          ],
+          "tags": [
+            "cnn",
+            "calculation",
+            "output-size",
+            "params"
+          ],
+          "q": "**CNN calculation.** An input image is $32\\times32\\times3$. It passes through a Conv2D layer with **16 filters**, kernel size $5\\times5$, **stride 1**, **no padding** ('valid'), followed by a $2\\times2$ **max-pooling** (stride 2). (a) What is the spatial size of the feature map *after the convolution*? (b) How many **trainable parameters** does the Conv2D layer have (include biases)? (c) What is the output size (H×W×C) *after* the pooling?",
+          "answer": "(a) Output side $=(32-5)/1+1=\\mathbf{28}$, so the conv feature map is $\\mathbf{28\\times28\\times16}$. (b) Params $=(5\\times5\\times3+1)\\times16=(75+1)\\times16=76\\times16=\\mathbf{1216}$. (c) Pooling halves each spatial dim: $28/2=14$, channels unchanged $\\Rightarrow \\mathbf{14\\times14\\times16}$.",
+          "calc": [
+            {
+              "value": 28,
+              "tol": 0,
+              "label": "conv spatial side (28)"
+            },
+            {
+              "value": 1216,
+              "tol": 0,
+              "label": "conv trainable params"
+            },
+            {
+              "value": 14,
+              "tol": 0,
+              "label": "pooled spatial side (14)"
+            }
+          ]
+        },
+        {
+          "type": "open",
+          "freq": 3,
+          "sources": [
+            "Mock C"
+          ],
+          "tags": [
+            "keras",
+            "code",
+            "cnn",
+            "multiclass"
+          ],
+          "q": "**Keras code.** Write a Keras (`tf.keras`) program that builds, compiles, trains and evaluates a small CNN for **10-class** image classification on $28\\times28$ grayscale images. The labels are supplied as **integers** (not one-hot). Include at least one Conv2D + **BatchNormalization**, a pooling layer, a dense head, and use the loss appropriate for **integer** labels.",
+          "answer": "Key points: final Dense uses **softmax** with 10 units, and because labels are integers the loss is **`sparse_categorical_crossentropy`** (not `categorical_crossentropy`). BatchNormalization is placed after the Conv layer.\n\n```python\nimport tensorflow as tf\nfrom tensorflow.keras import layers, models\n\nmodel = models.Sequential([\n    layers.Input(shape=(28, 28, 1)),\n    layers.Conv2D(32, (3, 3), activation='relu'),\n    layers.BatchNormalization(),\n    layers.MaxPooling2D((2, 2)),\n    layers.Conv2D(64, (3, 3), activation='relu'),\n    layers.BatchNormalization(),\n    layers.MaxPooling2D((2, 2)),\n    layers.Flatten(),\n    layers.Dense(64, activation='relu'),\n    layers.Dense(10, activation='softmax')\n])\n\nmodel.compile(optimizer='adam',\n              loss='sparse_categorical_crossentropy',\n              metrics=['accuracy'])\n\nmodel.fit(x_train, y_train, epochs=10, batch_size=32,\n          validation_split=0.1)\n\ntest_loss, test_acc = model.evaluate(x_test, y_test)\nprint('Test accuracy:', test_acc)\n```",
+          "extend": "If labels were one-hot vectors you would instead use `categorical_crossentropy`. For binary output you would use a single sigmoid unit with `binary_crossentropy`."
+        },
+        {
+          "type": "mc",
+          "freq": 3,
+          "sources": [
+            "Mock C"
+          ],
+          "tags": [
+            "classical-ml",
+            "random-forest",
+            "bias-variance"
+          ],
+          "q": "**Classical ML.** (a) In one sentence, how does a **random forest** reduce the high variance of a single decision tree? (b) Which choice below best describes the **bias–variance** effect of averaging many trees?",
+          "answer": "(a) A random forest trains many **de-correlated** decision trees on **bootstrap** samples with **random feature subsets** at each split, then averages/votes their predictions; averaging many high-variance, low-bias trees **reduces variance** without much increase in bias. (b) The correct option is that it **lowers variance while keeping bias roughly the same**.",
+          "options": [
+            {
+              "text": "Averaging many de-correlated trees mainly reduces variance while bias stays roughly unchanged.",
+              "correct": true
+            },
+            {
+              "text": "It mainly reduces bias, and variance is unaffected.",
+              "correct": false
+            },
+            {
+              "text": "It increases both bias and variance, which is why forests overfit more than single trees.",
+              "correct": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mockc-p2-part-2-breadth",
+      "title": "Part 2 — Breadth",
+      "recap": "Exam-style questions covering this section — attempt each, then reveal the model answer.",
+      "questions": [
+        {
+          "type": "open",
+          "freq": 3,
+          "sources": [
+            "Mock C"
+          ],
+          "tags": [
+            "rnn",
+            "embedding",
+            "sequence"
+          ],
+          "q": "**Sequences & embeddings.** (a) What problem does a word **embedding** layer solve compared with one-hot encoding of a large vocabulary? (b) Why do plain **RNNs** struggle with long sequences, and name one architecture that addresses this.",
+          "answer": "(a) One-hot vectors are **high-dimensional and sparse** (size = vocabulary) and carry **no notion of similarity** between words. An **embedding** maps each token to a **dense, low-dimensional, learned** vector where semantically similar words lie close together, drastically reducing dimensionality and letting the model generalize. (b) Plain RNNs suffer from **vanishing/exploding gradients** when back-propagating through many time steps, so they cannot retain **long-range dependencies**. **LSTM** (or GRU) uses gating/cell state to preserve information over long spans."
+        },
+        {
+          "type": "open",
+          "freq": 3,
+          "sources": [
+            "Mock C"
+          ],
+          "tags": [
+            "attention",
+            "transformer",
+            "vit"
+          ],
+          "q": "**Attention / Transformers.** (a) In one line, what does **self-attention** compute for a token? (b) Give one advantage of the Transformer over an RNN. (c) How does a **Vision Transformer (ViT)** feed an image into a Transformer?",
+          "answer": "(a) For each token it computes a **weighted sum of the values** of all tokens, where the weights come from the **query·key** similarity ($\\text{softmax}(QK^\\top/\\sqrt{d})V$) — i.e. how much each other token should attend to it. (b) It processes the whole sequence **in parallel** (no sequential recurrence) and captures **long-range dependencies** directly, giving better scalability and training speed. (c) ViT splits the image into fixed-size **patches**, linearly **embeds** each patch (plus a **positional encoding**), and treats the sequence of patch-embeddings like tokens fed to a standard Transformer encoder."
+        },
+        {
+          "type": "open",
+          "freq": 3,
+          "sources": [
+            "Mock C"
+          ],
+          "tags": [
+            "rl",
+            "value-iteration",
+            "calculation"
+          ],
+          "q": "**Reinforcement learning — calculation.** A simple MDP: from state $S$ two actions are available. Action A gives an immediate reward of $5$ and leads to a terminal state (value $0$). Action B gives an immediate reward of $2$ and leads to state $S'$ whose value is $V(S')=10$. Use a **discount factor** $\\gamma=0.9$. (a) Compute the Q-value $Q(S,A)$. (b) Compute $Q(S,B)$. (c) Under a greedy policy, what is $V(S)$ and which action is chosen?",
+          "answer": "Using $Q(s,a)=r+\\gamma V(\\text{next})$. (a) $Q(S,A)=5+0.9\\times0=\\mathbf{5}$. (b) $Q(S,B)=2+0.9\\times10=2+9=\\mathbf{11}$. (c) Greedy value $V(S)=\\max(5,11)=\\mathbf{11}$, and the agent chooses **action B**.",
+          "calc": [
+            {
+              "value": 5,
+              "tol": 0,
+              "label": "Q(S,A)"
+            },
+            {
+              "value": 11,
+              "tol": 0,
+              "label": "Q(S,B)"
+            },
+            {
+              "value": 11,
+              "tol": 0,
+              "label": "V(S) greedy"
+            }
+          ],
+          "extend": "This is one backup step of **value iteration**. The **exploration–exploitation** trade-off (e.g. **epsilon-greedy**: act greedily with prob $1-\\epsilon$, random with prob $\\epsilon$) is what lets an agent discover that B is better before committing to it."
+        },
+        {
+          "type": "open",
+          "freq": 3,
+          "sources": [
+            "Mock C"
+          ],
+          "tags": [
+            "generative",
+            "llm",
+            "rag",
+            "fine-tuning"
+          ],
+          "q": "**Generative AI / LLMs.** A team wants an LLM to answer questions accurately over a company's constantly-updated internal documents. (a) Contrast **RAG** (retrieval-augmented generation) with **fine-tuning** as ways to inject this knowledge. (b) Give one reason RAG is often preferred when the documents change frequently.",
+          "answer": "(a) **Fine-tuning** updates the model's **weights** on the company data, baking the knowledge in — expensive to retrain, and the knowledge becomes stale as soon as documents change. **RAG** keeps the base model frozen and, at query time, **retrieves** relevant document chunks from a vector store and adds them to the **prompt/context**, so the model reasons over up-to-date external text without weight changes. (b) With RAG you only **update the document index**, not the model — new/changed documents are reflected immediately, it avoids costly retraining, and retrieved sources can be **cited**, reducing hallucination. Fine-tuning better teaches *style/format or skills* rather than volatile facts."
+        },
+        {
+          "type": "open",
+          "freq": 3,
+          "sources": [
+            "Mock C"
+          ],
+          "tags": [
+            "eda",
+            "surrogate-model",
+            "agentic"
+          ],
+          "q": "**ML for EDA / Agentic AI.** (a) Explain how a **surrogate (proxy) model** accelerates an EDA flow, and why this is described as turning an $O(n^2)$-style evaluation into effectively $O(1)$ at inference. (b) Name the three core components of the **Brain/Tools/Memory** loop of an **agentic AI** system and give one line on each.",
+          "answer": "(a) Running an exact EDA analysis (e.g. a full simulation, timing/DRC/placement evaluation) is **slow and expensive**. A **surrogate model** is a fast ML approximator trained on many prior expensive evaluations; once trained, a prediction is a single cheap **forward pass** — effectively **$O(1)$** — instead of re-running the costly analysis, so it can be called thousands of times inside an optimization loop that would otherwise be infeasible. (b) **Brain** = the LLM/planner that reasons and decides the next step; **Tools** = external actions/APIs (simulators, search, code execution) the agent can call to affect the world; **Memory** = stored context/history (short- and long-term) so the agent can recall past results and maintain state across the loop."
+        }
+      ]
+    }
+  ]
+}

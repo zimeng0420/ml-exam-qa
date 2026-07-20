@@ -1,0 +1,226 @@
+{
+  "id": "ch14",
+  "roman": "M2",
+  "title": "📝 Mock Exam B — Full paper (exam-style)",
+  "blurb": "A complete timed-style mock exam in the professor's format: mostly concept short-answers, one Keras CNN code question, and a CNN calculation. Covers the whole syllabus with emphasis on NN fundamentals + CNN.",
+  "knowledge_points": [
+    {
+      "id": "kp1",
+      "title": "Part 1 — NN & CNN core",
+      "recap": "Core exam topics: NN fundamentals (loss/activation/optimization) plus CNN concepts, a CNN calculation, and a Keras code question.",
+      "questions": [
+        {
+          "type": "open",
+          "freq": 3,
+          "sources": [
+            "Mock B"
+          ],
+          "tags": [
+            "nn",
+            "batchnorm",
+            "optimizers"
+          ],
+          "q": "**(a)** Explain what **Batch Normalization** does to the activations of a layer and *why* it speeds up training. **(b)** Contrast the **Adam** optimizer with plain **SGD**: name the two things Adam adds. **(c)** Why is BatchNorm's behaviour different at **training** vs **inference** time?",
+          "answer": "**(a)** BatchNorm normalizes each layer's pre-activations across the mini-batch to roughly **zero mean, unit variance**, then applies a learnable **scale $\\gamma$** and **shift $\\beta$**. This reduces **internal covariate shift**, keeps activations in a well-conditioned range, allows **higher learning rates**, and acts as a mild **regularizer**. **(b)** Adam adds (1) **momentum** — an exponential moving average of the gradient (first moment), and (2) a **per-parameter adaptive learning rate** from the moving average of squared gradients (second moment, like RMSProp), with bias correction. **(c)** At **training** time it uses the current **batch** mean/variance; at **inference** it uses **running (population) statistics** accumulated during training, so predictions are deterministic and independent of batch composition.",
+          "extend": "A common trick is to place BatchNorm *before* the nonlinearity; it also lets you drop or reduce Dropout."
+        },
+        {
+          "type": "mc",
+          "freq": 3,
+          "sources": [
+            "Mock B"
+          ],
+          "tags": [
+            "cnn",
+            "concept",
+            "pooling"
+          ],
+          "q": "In a CNN, what is the main purpose of a **max-pooling** layer?",
+          "answer": "Max-pooling **downsamples** each feature map by keeping the strongest activation in each window. This shrinks spatial dimensions (cutting computation), gives small **translation invariance**, and enlarges the effective **receptive field** — without adding trainable parameters.",
+          "options": [
+            {
+              "text": "Downsample feature maps and add local translation invariance with no trainable parameters",
+              "correct": true
+            },
+            {
+              "text": "Learn a set of convolution filters to detect edges",
+              "correct": false
+            },
+            {
+              "text": "Normalize activations to zero mean and unit variance",
+              "correct": false
+            },
+            {
+              "text": "Increase the number of channels to add model capacity",
+              "correct": false
+            }
+          ]
+        },
+        {
+          "type": "open",
+          "freq": 3,
+          "sources": [
+            "Mock B"
+          ],
+          "tags": [
+            "cnn",
+            "calculation",
+            "output-size",
+            "params"
+          ],
+          "q": "A conv layer takes an input of shape $32\\times32\\times3$. It uses **16 filters** of size $5\\times5$, **stride 1**, **no padding** (valid). **(a)** Compute the output spatial size. **(b)** Compute the number of **trainable parameters** in this layer (weights + biases).",
+          "answer": "**(a)** Output size $=\\frac{W-F}{S}+1=\\frac{32-5}{1}+1=\\mathbf{28}$, so the output volume is $\\mathbf{28\\times28\\times16}$. **(b)** Each filter has $5\\times5\\times3=75$ weights plus 1 bias $=76$ params. With 16 filters: $16\\times76=\\mathbf{1216}$ trainable parameters.",
+          "calc": [
+            {
+              "value": 28,
+              "tol": 0,
+              "label": "Output spatial dimension (H=W)"
+            },
+            {
+              "value": 1216,
+              "tol": 0,
+              "label": "Trainable parameters (weights + biases)"
+            }
+          ]
+        },
+        {
+          "type": "open",
+          "freq": 3,
+          "sources": [
+            "Mock B"
+          ],
+          "tags": [
+            "keras",
+            "code",
+            "cnn",
+            "binary"
+          ],
+          "q": "Using **Keras**, write code for a small CNN for **binary image classification** on $64\\times64$ RGB images. Use at least one **BatchNormalization** layer, a **sigmoid** output, compile with **binary_crossentropy**, then **fit** and **evaluate**.",
+          "answer": "Use one output unit with **sigmoid** and **binary_crossentropy** (not softmax/categorical). BatchNormalization is placed after the conv, before pooling/activation flow.\n\n```python\nimport tensorflow as tf\nfrom tensorflow.keras import layers, models\n\nmodel = models.Sequential([\n    layers.Input(shape=(64, 64, 3)),\n    layers.Conv2D(32, (3, 3), activation='relu'),\n    layers.BatchNormalization(),\n    layers.MaxPooling2D((2, 2)),\n    layers.Conv2D(64, (3, 3), activation='relu'),\n    layers.BatchNormalization(),\n    layers.MaxPooling2D((2, 2)),\n    layers.Flatten(),\n    layers.Dense(64, activation='relu'),\n    layers.Dropout(0.5),\n    layers.Dense(1, activation='sigmoid')\n])\n\nmodel.compile(optimizer='adam',\n              loss='binary_crossentropy',\n              metrics=['accuracy'])\n\nmodel.fit(x_train, y_train, epochs=10, batch_size=32,\n          validation_split=0.2)\n\ntest_loss, test_acc = model.evaluate(x_test, y_test)\nprint('Test accuracy:', test_acc)\n```",
+          "extend": "For multi-class you would swap to `Dense(K, activation='softmax')` with `categorical_crossentropy` (or `sparse_categorical_crossentropy` for integer labels)."
+        },
+        {
+          "type": "open",
+          "freq": 3,
+          "sources": [
+            "Mock B"
+          ],
+          "tags": [
+            "classical-ml",
+            "svm",
+            "concept"
+          ],
+          "q": "For a **Support Vector Machine** with an RBF kernel: **(a)** what does the regularization parameter **$C$** control, and **(b)** what does the kernel width parameter **$\\gamma$** control? **(c)** State the effect on **overfitting** of making each *very large*.",
+          "answer": "**(a)** **$C$** trades off **margin width vs. training-error tolerance**: large $C$ penalizes misclassifications heavily → a **narrow, hard margin** that fits training data closely; small $C$ allows more margin violations → a **wider, softer margin**. **(b)** **$\\gamma$** sets the **reach of a single training example**: large $\\gamma$ = narrow Gaussian, influence is very **local**; small $\\gamma$ = broad influence, **smoother** boundary. **(c)** **Very large $C$** and **very large $\\gamma$** both push toward **overfitting** — a wiggly boundary that memorizes training points and generalizes poorly.",
+          "extend": "$C$ and $\\gamma$ are usually tuned jointly by grid/cross-validation."
+        }
+      ]
+    },
+    {
+      "id": "kp2",
+      "title": "Part 2 — Breadth",
+      "recap": "One question per advanced topic: RNN/embeddings, attention/Transformer, reinforcement learning, generative AI/LLM, and GNN/PINN or EDA/Agentic.",
+      "questions": [
+        {
+          "type": "open",
+          "freq": 3,
+          "sources": [
+            "Mock B"
+          ],
+          "tags": [
+            "rnn",
+            "embedding",
+            "sequence"
+          ],
+          "q": "**(a)** What problem does an **embedding layer** solve compared with one-hot encoding of words? **(b)** In a vanilla RNN, name the training problem that makes learning **long-range dependencies** hard, and **(c)** name one architecture that mitigates it.",
+          "answer": "**(a)** One-hot vectors are **high-dimensional, sparse, and orthogonal** (no notion of similarity). An **embedding layer** maps each token to a **dense, low-dimensional learned vector** where semantically similar tokens lie close together, and it is trained end-to-end. **(b)** The **vanishing (and exploding) gradient** problem: gradients shrink over many time steps so early inputs barely influence the loss. **(c)** **LSTM** or **GRU** (gated units with a cell/carry state) — also gradient clipping helps with exploding gradients.",
+          "extend": "Transformers avoid the recurrence entirely, using self-attention so any two positions interact in one step."
+        },
+        {
+          "type": "mc",
+          "freq": 3,
+          "sources": [
+            "Mock B"
+          ],
+          "tags": [
+            "transformer",
+            "attention",
+            "vit"
+          ],
+          "q": "A **Vision Transformer (ViT)** differs from a CNN mainly because it:",
+          "answer": "A ViT splits the image into fixed-size **patches**, linearly embeds them into tokens (plus positional embeddings), and processes them with **self-attention** — giving a **global receptive field** from layer one, unlike the local, weight-shared filters of a CNN. It typically needs **large datasets or pretraining** to match CNNs because it lacks the built-in locality/translation-invariance inductive bias.",
+          "options": [
+            {
+              "text": "Splits the image into patch tokens and models global relations with self-attention instead of local convolutions",
+              "correct": true
+            },
+            {
+              "text": "Uses larger convolution kernels but is otherwise identical to a CNN",
+              "correct": false
+            },
+            {
+              "text": "Removes all nonlinearities to make the model linear",
+              "correct": false
+            },
+            {
+              "text": "Only works on grayscale images",
+              "correct": false
+            }
+          ]
+        },
+        {
+          "type": "open",
+          "freq": 3,
+          "sources": [
+            "Mock B"
+          ],
+          "tags": [
+            "rl",
+            "calculation",
+            "discounted-return"
+          ],
+          "q": "In reinforcement learning, an agent receives the reward sequence $r_1=2$, $r_2=0$, $r_3=4$, $r_4=1$ and then the episode ends. Using discount factor $\\gamma=0.5$, compute the **discounted return** $G_0=\\sum_{t}\\gamma^{t} r_{t+1}$ from the first step (index the first reward with $\\gamma^0$).",
+          "answer": "$G_0 = \\gamma^0(2) + \\gamma^1(0) + \\gamma^2(4) + \\gamma^3(1) = 2 + 0 + 0.25\\times4 + 0.125\\times1 = 2 + 0 + 1 + 0.125 = \\mathbf{3.125}$.",
+          "calc": [
+            {
+              "value": 3.125,
+              "tol": 0.001,
+              "label": "Discounted return G0 with gamma=0.5"
+            }
+          ]
+        },
+        {
+          "type": "open",
+          "freq": 3,
+          "sources": [
+            "Mock B"
+          ],
+          "tags": [
+            "genai",
+            "gan",
+            "vae",
+            "diffusion"
+          ],
+          "q": "Briefly **contrast** three generative model families: **(a)** GAN, **(b)** VAE, **(c)** diffusion model — in terms of how each is trained/generates, and give one practical strength or weakness of each.",
+          "answer": "**(a) GAN:** a **generator** vs. a **discriminator** trained adversarially; generation is a single fast forward pass. Strength: **sharp, realistic** samples. Weakness: **unstable training** and **mode collapse**. **(b) VAE:** an **encoder–decoder** trained to maximize a variational lower bound (reconstruction + **KL** to a prior latent). Strength: **stable training** and a smooth **latent space** for interpolation. Weakness: samples are often **blurry**. **(c) Diffusion:** learns to **denoise** data corrupted by gradually added Gaussian noise, then generates by reversing the noise over many steps. Strength: **state-of-the-art quality and diversity**. Weakness: **slow, iterative** sampling (many network evaluations).",
+          "extend": "Diffusion sampling can be accelerated with fewer-step solvers (e.g., DDIM) or distillation."
+        },
+        {
+          "type": "open",
+          "freq": 3,
+          "sources": [
+            "Mock B"
+          ],
+          "tags": [
+            "pinn",
+            "physics",
+            "breadth"
+          ],
+          "q": "**Physics-Informed Neural Networks (PINNs):** **(a)** what is added to the loss function compared with a standard supervised NN, and **(b)** why is this useful when you have **little labelled data** in an engineering/EDA setting?",
+          "answer": "**(a)** A PINN adds a **physics (residual) loss**: the governing **differential equation** (e.g., a PDE/ODE) is evaluated on the network's own outputs using **automatic differentiation**, and the residual is penalized alongside any data-fit and boundary/initial-condition terms. Total loss $=$ **data loss** $+$ **PDE residual loss** $+$ **boundary/IC loss**. **(b)** The physics term acts as a strong **prior/regularizer** that constrains the solution everywhere in the domain — not just at labelled points — so the model can be trained with **few or no labels** while still respecting known conservation/field equations, improving generalization and physical plausibility.",
+          "extend": "In EDA, PINN-style constraints appear in fast surrogates for thermal, electromagnetic, or device-physics simulation."
+        }
+      ]
+    }
+  ]
+}

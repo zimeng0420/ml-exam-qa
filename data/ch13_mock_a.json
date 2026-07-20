@@ -1,0 +1,240 @@
+{
+  "id": "ch13",
+  "roman": "M1",
+  "title": "📝 Mock Exam A — Full paper (exam-style)",
+  "blurb": "A complete timed-style mock exam in the professor's format: mostly concept short-answers (explain / why / contrast), one Keras CNN code question, and a CNN calculation. Covers the whole syllabus with emphasis on NN fundamentals + CNN.",
+  "knowledge_points": [
+    {
+      "id": "kp_part1",
+      "title": "Part 1 — NN & CNN core",
+      "recap": "Core exam topics: NN fundamentals (loss/activation/optimization) plus CNN concepts, a CNN calculation, and a Keras code question.",
+      "questions": [
+        {
+          "type": "open",
+          "freq": 3,
+          "sources": [
+            "Mock A"
+          ],
+          "tags": [
+            "NN",
+            "loss",
+            "activation",
+            "output layer"
+          ],
+          "q": "Neural-network fundamentals. (a) For a binary classification task, name the appropriate **output activation** and **loss function**, and explain why they pair well. (b) For 10-class classification, what changes? (c) Briefly, why is a plain **linear (identity) output + MSE** a poor choice for classification?",
+          "answer": "(a) Use **sigmoid** output + **binary cross-entropy**. The sigmoid squashes the logit to a probability in $[0,1]$; binary cross-entropy is the negative log-likelihood of a Bernoulli, so its gradient w.r.t. the logit is simply $(\\hat{y}-y)$ — clean, well-scaled gradients and no vanishing when the prediction is confidently wrong. (b) Use a **softmax** output over 10 units + **categorical cross-entropy** (softmax generalises sigmoid to a probability distribution over classes). (c) Linear output + MSE does not produce probabilities, penalises correct-but-confident outputs oddly, and gives small/vanishing gradients in the saturated region, so it trains slowly and calibrates poorly for classification.",
+          "extend": "The 'clean gradient' cancellation is why cross-entropy is preferred over MSE with sigmoid/softmax."
+        },
+        {
+          "type": "mc",
+          "freq": 3,
+          "sources": [
+            "Mock A"
+          ],
+          "tags": [
+            "CNN",
+            "convolution",
+            "fully-connected",
+            "parameter sharing"
+          ],
+          "q": "Which statement best explains why a **convolutional layer** is preferred over a **fully-connected layer** for images?",
+          "answer": "A convolutional layer uses **local receptive fields** and **weight sharing**, giving far fewer parameters and **translation-equivariant** feature detection, whereas a fully-connected layer connects every input pixel to every neuron and ignores spatial structure.",
+          "options": [
+            {
+              "text": "It uses weight sharing and local receptive fields, so it has far fewer parameters and detects features regardless of position.",
+              "correct": true
+            },
+            {
+              "text": "It always has more parameters, which increases accuracy on images.",
+              "correct": false
+            },
+            {
+              "text": "It removes the need for any activation function.",
+              "correct": false
+            },
+            {
+              "text": "It guarantees the network cannot overfit.",
+              "correct": false
+            }
+          ]
+        },
+        {
+          "type": "open",
+          "freq": 3,
+          "sources": [
+            "Mock A"
+          ],
+          "tags": [
+            "CNN",
+            "calculation",
+            "output size",
+            "parameters"
+          ],
+          "q": "CNN calculation. An input feature map is $32\\times32\\times3$. A convolutional layer applies **16 filters** of kernel size $5\\times5$, **stride 1**, and **'same' (zero) padding** of 2. (a) Give the output spatial size (H and W). (b) Give the number of output channels. (c) Compute the total number of **trainable parameters** in this conv layer (weights + one bias per filter). Recall output size $= \\lfloor (W - K + 2P)/S \\rfloor + 1$.",
+          "answer": "(a) $H = W = \\lfloor(32-5+2\\cdot2)/1\\rfloor + 1 = \\lfloor 31/1 \\rfloor + 1 = 32$, so the output is $32\\times32$ (padding='same' preserves spatial size at stride 1). (b) **16** output channels (one per filter). (c) Weights per filter $= 5\\times5\\times3 = 75$; plus 1 bias $= 76$ per filter; total $= 76 \\times 16 = \\mathbf{1216}$ trainable parameters.",
+          "calc": [
+            {
+              "label": "Output height H",
+              "value": 32,
+              "tol": 0
+            },
+            {
+              "label": "Output width W",
+              "value": 32,
+              "tol": 0
+            },
+            {
+              "label": "Output channels",
+              "value": 16,
+              "tol": 0
+            },
+            {
+              "label": "Total trainable parameters",
+              "value": 1216,
+              "tol": 0
+            }
+          ]
+        },
+        {
+          "type": "open",
+          "freq": 3,
+          "sources": [
+            "Mock A"
+          ],
+          "tags": [
+            "Keras",
+            "CNN",
+            "code",
+            "compile",
+            "fit",
+            "evaluate"
+          ],
+          "q": "Keras code. You are given `x_train, y_train, x_test, y_test` for a 10-class image dataset with inputs of shape $28\\times28\\times1$ and **integer** labels. Write Keras code that (a) builds a small CNN classifier (at least one Conv2D + pooling, then a Dense head), (b) compiles it with an appropriate optimizer and loss, (c) fits it for a few epochs, and (d) evaluates test accuracy.",
+          "answer": "A minimal, correct answer:\n\n```python\nimport tensorflow as tf\nfrom tensorflow.keras import layers, models\n\nmodel = models.Sequential([\n    layers.Input(shape=(28, 28, 1)),\n    layers.Conv2D(32, (3, 3), activation='relu', padding='same'),\n    layers.MaxPooling2D((2, 2)),\n    layers.Conv2D(64, (3, 3), activation='relu', padding='same'),\n    layers.MaxPooling2D((2, 2)),\n    layers.Flatten(),\n    layers.Dense(64, activation='relu'),\n    layers.Dense(10, activation='softmax'),   # 10 classes\n])\n\n# integer labels -> sparse categorical cross-entropy\nmodel.compile(optimizer='adam',\n              loss='sparse_categorical_crossentropy',\n              metrics=['accuracy'])\n\nmodel.fit(x_train, y_train, epochs=5, batch_size=64, validation_split=0.1)\n\ntest_loss, test_acc = model.evaluate(x_test, y_test)\nprint('Test accuracy:', test_acc)\n```\n\nKey marks: **softmax** 10-unit output, **sparse_categorical_crossentropy** (labels are integers, not one-hot), and calling `.evaluate` on the test set.",
+          "extend": "If labels were one-hot, switch the loss to `categorical_crossentropy`."
+        },
+        {
+          "type": "open",
+          "freq": 3,
+          "sources": [
+            "Mock A"
+          ],
+          "tags": [
+            "classical ML",
+            "KNN",
+            "decision boundary"
+          ],
+          "q": "Classical ML — **k-Nearest Neighbours**. (a) Is KNN a parametric or non-parametric method, and where does its 'training' cost go? (b) Contrast the effect of a very **small k** vs a very **large k** on the decision boundary (bias/variance). (c) Why does feature **scaling** matter for KNN?",
+          "answer": "(a) KNN is **non-parametric** and a **lazy learner**: there is essentially no training — it just stores the data; the cost is at **inference**, when it searches for the nearest neighbours. (b) **Small k** (e.g. k=1) gives a very flexible, jagged boundary → **low bias, high variance** (sensitive to noise/overfitting); **large k** smooths the boundary → **high bias, low variance** (can underfit). (c) KNN relies on a **distance metric** (e.g. Euclidean); features on larger numeric scales dominate the distance, so features must be **normalised/standardised** for a fair comparison.",
+          "extend": "Odd k avoids ties in binary voting."
+        }
+      ]
+    },
+    {
+      "id": "kp_part2",
+      "title": "Part 2 — Breadth (advanced topics)",
+      "recap": "One question per advanced topic: RNN/embeddings, attention/Transformer, reinforcement learning, generative AI/LLM, and GNN/PINN or EDA/Agentic.",
+      "questions": [
+        {
+          "type": "open",
+          "freq": 3,
+          "sources": [
+            "Mock A"
+          ],
+          "tags": [
+            "RNN",
+            "LSTM",
+            "vanishing gradient"
+          ],
+          "q": "Sequence models. (a) Explain why plain **RNNs** suffer from the **vanishing gradient** problem on long sequences. (b) Name one **LSTM gate** and describe how the LSTM architecture mitigates this problem.",
+          "answer": "(a) Backpropagation through time repeatedly multiplies by the recurrent weight/derivative at each step; when these factors are $<1$ the gradient shrinks **exponentially** with sequence length, so early time steps receive almost no learning signal (long-range dependencies are lost). (Factors $>1$ cause the exploding-gradient variant.) (b) The **forget gate** (also input and output gates) controls a **cell state** that is updated mostly by **addition**, creating a near-constant-error 'conveyor belt'. Gradients can flow along the cell state without repeated multiplicative shrinkage, so the LSTM preserves long-range information much better.",
+          "extend": "GRUs achieve similar gating with fewer parameters (update + reset gates)."
+        },
+        {
+          "type": "mc",
+          "freq": 3,
+          "sources": [
+            "Mock A"
+          ],
+          "tags": [
+            "attention",
+            "transformer",
+            "self-attention"
+          ],
+          "q": "In **self-attention**, what is the role of the **query, key, and value** vectors?",
+          "answer": "Each token's **query** is compared (dot product) with every token's **key** to produce attention weights (via softmax), and those weights are used to take a weighted sum of the **value** vectors. This lets every token gather context from all other tokens in parallel.",
+          "options": [
+            {
+              "text": "The query-key dot products give attention weights (after softmax) that weight the value vectors summed into each output.",
+              "correct": true
+            },
+            {
+              "text": "Queries and keys are the network's learned biases; values are the labels.",
+              "correct": false
+            },
+            {
+              "text": "They are three independent CNN filters applied to the image.",
+              "correct": false
+            },
+            {
+              "text": "The value vector alone determines the attention weights; keys are unused.",
+              "correct": false
+            }
+          ],
+          "extend": "Scaling by $1/\\sqrt{d_k}$ keeps the softmax gradients well-behaved."
+        },
+        {
+          "type": "open",
+          "freq": 3,
+          "sources": [
+            "Mock A"
+          ],
+          "tags": [
+            "reinforcement learning",
+            "discounted return",
+            "calculation"
+          ],
+          "q": "Reinforcement learning — discounted return. An agent receives the reward sequence $r_1=2,\\ r_2=0,\\ r_3=-1,\\ r_4=5$ and then the episode ends. Using discount factor $\\gamma = 0.5$, compute the **discounted return from time step 1**, $G_1 = r_1 + \\gamma r_2 + \\gamma^2 r_3 + \\gamma^3 r_4$. Also state in one sentence what $\\gamma$ controls.",
+          "answer": "$G_1 = 2 + 0.5(0) + 0.25(-1) + 0.125(5) = 2 + 0 - 0.25 + 0.625 = \\mathbf{2.375}$. The **discount factor** $\\gamma \\in [0,1]$ controls how much **future** rewards are valued relative to immediate ones: small $\\gamma$ is myopic (favours near-term reward), $\\gamma$ near 1 is far-sighted.",
+          "calc": [
+            {
+              "label": "Discounted return G1",
+              "value": 2.375,
+              "tol": 0
+            }
+          ]
+        },
+        {
+          "type": "open",
+          "freq": 3,
+          "sources": [
+            "Mock A"
+          ],
+          "tags": [
+            "generative AI",
+            "LLM",
+            "RAG"
+          ],
+          "q": "Generative AI. (a) What problem with a plain **LLM** does **Retrieval-Augmented Generation (RAG)** address? (b) Outline the two main steps of a RAG pipeline. (c) Name one benefit of RAG over simply fine-tuning the model on the documents.",
+          "answer": "(a) A plain LLM answers only from **frozen parametric knowledge** learned at training time, so it can be out-of-date and tends to **hallucinate** facts it does not know. (b) **Retrieve** — embed the query, search a vector store / knowledge base for the most relevant document chunks; **Generate** — feed those chunks into the prompt as context so the LLM answers grounded in them. (c) RAG can be **updated instantly** by changing the document store (no retraining), provides **source citations/traceability**, and is cheaper than repeatedly fine-tuning.",
+          "extend": "Retrieval quality (embeddings + chunking) is usually the bottleneck for RAG accuracy."
+        },
+        {
+          "type": "open",
+          "freq": 3,
+          "sources": [
+            "Mock A"
+          ],
+          "tags": [
+            "GNN",
+            "EDA",
+            "inductive"
+          ],
+          "q": "GNNs for EDA. (a) In a **message-passing GNN**, describe in one or two sentences how a node updates its representation. (b) Why are GNNs a natural fit for **EDA** problems such as netlist/circuit analysis? (c) What does it mean for a GNN to be **inductive**, and why is that useful for EDA?",
+          "answer": "(a) Each node **aggregates messages** from its neighbours (e.g. sum/mean/max of transformed neighbour features), then **combines** that aggregate with its own features through a learnable update (and a nonlinearity); stacking layers widens the receptive field over the graph. (b) A **netlist is literally a graph** — cells/gates are nodes and wires/nets are edges — so a GNN respects the circuit's connectivity and permutation-invariance instead of forcing it into a grid or sequence. (c) **Inductive** means the model generalises to **unseen graphs/nodes** (it learns functions of local structure, not fixed node IDs), so a GNN trained on some designs can predict on **new circuits** — essential for reusable EDA surrogate models (e.g. congestion / timing / power prediction).",
+          "extend": "GraphSAGE is a classic inductive GNN; earlier transductive methods could not handle new nodes."
+        }
+      ]
+    }
+  ]
+}
