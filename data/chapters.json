@@ -121,6 +121,13 @@
       "title": "📝 Mock Exam C — Full paper",
       "file": "ch15_mock_c.json",
       "status": "ready"
+    },
+    {
+      "id": "ch16",
+      "roman": "XVI",
+      "title": "💻 Code Special — all lab code types",
+      "file": "ch16_code_special.json",
+      "status": "ready"
     }
   ]
 }
