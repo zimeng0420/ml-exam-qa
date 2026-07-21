@@ -128,6 +128,13 @@
       "title": "💻 Code Special — all lab code types",
       "file": "ch16_code_special.json",
       "status": "ready"
+    },
+    {
+      "id": "ch17",
+      "roman": "XVII",
+      "title": "✍️ Mock Code Questions (write-the-code)",
+      "file": "ch17_mock_code.json",
+      "status": "ready"
     }
   ]
 }

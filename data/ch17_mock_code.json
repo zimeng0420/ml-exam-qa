@@ -1,0 +1,183 @@
+{
+  "id": "ch17",
+  "roman": "XVII",
+  "title": "✍️ Mock Code Questions (write-the-code)",
+  "blurb": "Exam-format code questions in the professor's Mock-Q2 style: 'Write Python code to build/extend a model, compile, fit and evaluate.' No fill-in-the-blanks — write the full code yourself, then reveal the model answer. Covers MLP / CNN / RNN, BatchNorm, regularization, tuning, and classical ML (sklearn).",
+  "knowledge_points": [
+    {
+      "id": "code-build-train",
+      "title": "Build & train models (Keras)",
+      "recap": "Mock-Q2-style: write full code to build/extend a model, compile, fit (with validation) and evaluate. Watch the output-activation/loss pairing and Flatten-before-Dense.",
+      "questions": [
+        {
+          "type": "open",
+          "freq": 3,
+          "sources": [
+            "Mock Code"
+          ],
+          "tags": [
+            "Keras",
+            "MLP",
+            "build model",
+            "code"
+          ],
+          "q": "**Write Python (Keras) code.** You are given `X_train, y_train, X_val, y_val, X_test, y_test` for a **10-class** image dataset. Inputs are flattened vectors of length **784** and labels are **one-hot** encoded.\n(a) Build a fully-connected classifier with at least two hidden layers.\n(b) Compile it with an appropriate optimizer and loss.\n(c) Fit it (don't forget validation).\n(d) Evaluate test accuracy.",
+          "answer": "```python\nfrom tensorflow.keras import models, layers\n\nmodel = models.Sequential()\nmodel.add(layers.Dense(128, activation='relu', input_shape=(784,)))\nmodel.add(layers.Dense(64, activation='relu'))\nmodel.add(layers.Dense(10, activation='softmax'))      # 10 classes\n\nmodel.compile(optimizer='adam',\n              loss='categorical_crossentropy',          # one-hot labels\n              metrics=['accuracy'])\n\nmodel.fit(X_train, y_train, epochs=10, batch_size=32,\n          validation_data=(X_val, y_val))\n\ntest_loss, test_acc = model.evaluate(X_test, y_test)\nprint('test acc:', test_acc)\n```\n\n**Marks:** softmax(10) output, **categorical_crossentropy** (one-hot), validation in fit, evaluate on test.",
+          "extend": "If labels were integers, use sparse_categorical_crossentropy."
+        },
+        {
+          "type": "open",
+          "freq": 3,
+          "sources": [
+            "Mock Code"
+          ],
+          "tags": [
+            "Keras",
+            "CNN",
+            "build model",
+            "code"
+          ],
+          "q": "**Write Python (Keras) code.** Given `X_train, y_train, X_test, y_test` for a **10-class** image dataset, inputs of shape **28×28×1** and **integer** labels.\n(a) Build a small CNN (at least one Conv2D + pooling, then a Dense head).\n(b) Compile it. (c) Fit for a few epochs. (d) Evaluate test accuracy.\nState which output activation and loss you use and why.",
+          "answer": "```python\nfrom tensorflow.keras import models, layers\n\nmodel = models.Sequential()\nmodel.add(layers.Conv2D(32, (3,3), activation='relu', input_shape=(28,28,1)))\nmodel.add(layers.MaxPooling2D((2,2)))\nmodel.add(layers.Conv2D(64, (3,3), activation='relu'))\nmodel.add(layers.MaxPooling2D((2,2)))\nmodel.add(layers.Flatten())                     # 3D -> 1D before Dense\nmodel.add(layers.Dense(64, activation='relu'))\nmodel.add(layers.Dense(10, activation='softmax'))\n\nmodel.compile(optimizer='adam',\n              loss='sparse_categorical_crossentropy',   # integer labels\n              metrics=['accuracy'])\nmodel.fit(X_train, y_train, epochs=5, batch_size=64,\n          validation_split=0.1)\ntest_loss, test_acc = model.evaluate(X_test, y_test)\nprint('test acc:', test_acc)\n```\n\n**Output = softmax(10)** (multi-class), **loss = sparse_categorical_crossentropy** because labels are **integers** (not one-hot). Flatten is required before Dense."
+        },
+        {
+          "type": "open",
+          "freq": 3,
+          "sources": [
+            "Mock Code"
+          ],
+          "tags": [
+            "Keras",
+            "CNN",
+            "BatchNorm",
+            "build model",
+            "code"
+          ],
+          "q": "**Write Python (Keras) code.** You have built a classification CNN and saved two copies in `model1` and `model2`.\n(a) Extend `model1` to match the output dimension using at least one more **Conv2D** (`num_filters` filters) and a fully connected layer, with appropriate hyperparameters.\n(b) Do the same for `model2` but add at least a **BatchNormalization** layer and a fully connected layer.\n(c) Compile and fit both (data in `X_train,y_train,X_val,y_val,X_test,y_test`).\n(d) Evaluate and compare them, and explain why we split the data into training / validation / test sets.",
+          "answer": "```python\nfrom tensorflow.keras.layers import Conv2D, BatchNormalization, Flatten, Dense\n\n# (a) extend model1\nmodel1.add(Conv2D(num_filters, (3,3), activation='relu'))\nmodel1.add(Flatten())\nmodel1.add(Dense(64, activation='relu'))\nmodel1.add(Dense(output_dim, activation='softmax'))\n\n# (b) extend model2 with BatchNormalization\nmodel2.add(BatchNormalization())\nmodel2.add(Conv2D(num_filters, (3,3), activation='relu'))\nmodel2.add(Flatten())\nmodel2.add(Dense(64, activation='relu'))\nmodel2.add(Dense(output_dim, activation='softmax'))\n\n# (c) compile + fit both\nfor model in [model1, model2]:\n    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])\n    model.fit(X_train, y_train, epochs=10, batch_size=32,\n              validation_data=(X_val, y_val))\n\n# (d) evaluate + compare\nloss1, acc1 = model1.evaluate(X_test, y_test)\nloss2, acc2 = model2.evaluate(X_test, y_test)\nprint('model1 better' if acc1 > acc2 else 'model2 better')\n```\n\n**(d) Why split:** **train** learns the weights; **validation** tunes hyperparameters / early stopping and detects overfitting; **test** is used only at the end to estimate true generalization and must not influence training or model selection (else the estimate is optimistically biased).",
+          "extend": "BatchNormalization() takes no arguments; never forget Flatten before Dense."
+        },
+        {
+          "type": "open",
+          "freq": 3,
+          "sources": [
+            "Mock Code"
+          ],
+          "tags": [
+            "Keras",
+            "CNN",
+            "BatchNorm",
+            "binary",
+            "code"
+          ],
+          "q": "**Write Python (Keras) code.** Given `X_train,y_train,X_val,y_val,X_test,y_test` for a **binary** image classification task (cat vs dog), inputs of shape **64×64×3**, labels **0/1**.\n(a) Build a CNN that includes at least one **BatchNormalization** layer.\n(b) Compile and fit it. (c) Evaluate.\nState the output activation, number of output units, and the loss, and why.",
+          "answer": "```python\nfrom tensorflow.keras.models import Sequential\nfrom tensorflow.keras.layers import Conv2D, BatchNormalization, MaxPooling2D, Flatten, Dense\n\nmodel = Sequential()\nmodel.add(Conv2D(32, (3,3), activation='relu', input_shape=(64,64,3)))\nmodel.add(BatchNormalization())\nmodel.add(Conv2D(64, (3,3), activation='relu'))\nmodel.add(MaxPooling2D((2,2)))\nmodel.add(Flatten())\nmodel.add(Dense(128, activation='relu'))\nmodel.add(Dense(1, activation='sigmoid'))       # binary: 1 unit + sigmoid\n\nmodel.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])\nmodel.fit(X_train, y_train, epochs=10, batch_size=32,\n          validation_data=(X_val, y_val))\nloss, acc = model.evaluate(X_test, y_test)\nprint('test acc:', acc)\n```\n\n**Binary → output = sigmoid with 1 unit, loss = binary_crossentropy.** (2-class → sigmoid+binary; multi-class → softmax+categorical/sparse.)"
+        },
+        {
+          "type": "open",
+          "freq": 3,
+          "sources": [
+            "Mock Code"
+          ],
+          "tags": [
+            "Keras",
+            "RNN",
+            "LSTM",
+            "embedding",
+            "code"
+          ],
+          "q": "**Write Python (Keras) code.** For an IMDB-style **binary sentiment** task, `x_train,y_train,x_val,y_val` are integer-encoded padded sequences (vocabulary size 10000).\n(a) Build an **Embedding + LSTM** model.\n(b) Compile and fit it.",
+          "answer": "```python\nfrom tensorflow.keras.models import Sequential\nfrom tensorflow.keras.layers import Embedding, LSTM, Dense\n\nmax_features = 10000\nmodel = Sequential()\nmodel.add(Embedding(max_features, 32))          # word id -> 32-dim vector\nmodel.add(LSTM(32))                             # or SimpleRNN(32)\nmodel.add(Dense(1, activation='sigmoid'))       # binary sentiment\n\nmodel.compile(optimizer='rmsprop', loss='binary_crossentropy', metrics=['acc'])\nmodel.fit(x_train, y_train, epochs=10, batch_size=128,\n          validation_data=(x_val, y_val))\n```\n\n**Marks:** Embedding first, LSTM, Dense(1,sigmoid)+binary_crossentropy. To stack recurrent layers, set `return_sequences=True` on all but the last."
+        }
+      ]
+    },
+    {
+      "id": "code-improve-tune",
+      "title": "Improve & tune (regularization / search)",
+      "recap": "Add regularization to fight overfitting, or search hyperparameters with GridSearchCV.",
+      "questions": [
+        {
+          "type": "open",
+          "freq": 3,
+          "sources": [
+            "Mock Code"
+          ],
+          "tags": [
+            "Keras",
+            "regularization",
+            "overfitting",
+            "code"
+          ],
+          "q": "**Write Python (Keras) code.** A model is **overfitting**. Rebuild it with three regularization techniques — **L2 weight decay**, **Dropout**, and **EarlyStopping** — and fit it.",
+          "answer": "```python\nimport tensorflow as tf\nfrom tensorflow.keras import models, layers\nfrom tensorflow.keras.callbacks import EarlyStopping\n\nmodel = models.Sequential()\nmodel.add(layers.Dense(64, activation='relu', input_shape=(input_dim,),\n                       kernel_regularizer=tf.keras.regularizers.L2(0.01)))   # L2\nmodel.add(layers.Dropout(0.5))                                               # Dropout\nmodel.add(layers.Dense(num_classes, activation='softmax'))\nmodel.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])\n\nes = EarlyStopping(monitor='val_loss', patience=3, restore_best_weights=True)  # EarlyStopping\nmodel.fit(X_train, y_train, epochs=100,\n          validation_data=(X_val, y_val), callbacks=[es])\n```\n\n**Anti-overfitting:** L2 (`kernel_regularizer`), Dropout, EarlyStopping (monitor='val_loss'). Could also reduce capacity or use data augmentation."
+        },
+        {
+          "type": "open",
+          "freq": 3,
+          "sources": [
+            "Mock Code"
+          ],
+          "tags": [
+            "Keras",
+            "GridSearchCV",
+            "tuning",
+            "code"
+          ],
+          "q": "**Write Python code.** Use **GridSearchCV** to tune the number of hidden neurons of a Keras model. Wrap the model so scikit-learn can search it.",
+          "answer": "```python\nfrom scikeras.wrappers import KerasClassifier\nfrom sklearn.model_selection import GridSearchCV\nfrom tensorflow.keras import models, layers\n\ndef create_model(neurons=50):\n    m = models.Sequential()\n    m.add(layers.Dense(neurons, activation='relu', input_shape=(784,)))\n    m.add(layers.Dropout(0.2))\n    m.add(layers.Dense(10, activation='softmax'))\n    m.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])\n    return m\n\nclf = KerasClassifier(build_fn=create_model, epochs=5, batch_size=32)\nparams = {'neurons': [50, 100, 250, 500]}\ngrid = GridSearchCV(estimator=clf, param_grid=params)\ngrid_result = grid.fit(X_train, y_train)\nprint('Best:', grid_result.best_score_, grid_result.best_params_)\n```\n\n**Marks:** `KerasClassifier(build_fn=...)` wraps the Keras model; `GridSearchCV(param_grid=...)` searches. Use `RandomizedSearchCV` to sample instead of exhaustively trying all combos."
+        }
+      ]
+    },
+    {
+      "id": "code-classical",
+      "title": "Classical ML & preprocessing (sklearn)",
+      "recap": "fit → predict pipelines with standardization, model selection, and data preparation.",
+      "questions": [
+        {
+          "type": "open",
+          "freq": 3,
+          "sources": [
+            "Mock Code"
+          ],
+          "tags": [
+            "sklearn",
+            "KNN",
+            "classical ML",
+            "code"
+          ],
+          "q": "**Write Python (scikit-learn) code.** For a KNN classification task with features `X` and labels `y`:\n(a) split into train/test and **standardize** the features correctly.\n(b) Train KNN and predict.\n(c) Find the best value of **K** by trying K = 1..39 and comparing error rate.",
+          "answer": "```python\nimport numpy as np\nfrom sklearn.model_selection import train_test_split\nfrom sklearn.preprocessing import StandardScaler\nfrom sklearn.neighbors import KNeighborsClassifier\n\nX_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.30)\n\nscaler = StandardScaler()\nscaler.fit(X_train)                 # fit ONLY on train (no leakage)\nX_train = scaler.transform(X_train)\nX_test  = scaler.transform(X_test)\n\nknn = KNeighborsClassifier(n_neighbors=5)\nknn.fit(X_train, y_train)           # 'training' = store the data (lazy learner)\npred = knn.predict(X_test)\n\nerror_rate = []\nfor i in range(1, 40):\n    m = KNeighborsClassifier(n_neighbors=i).fit(X_train, y_train)\n    error_rate.append(np.mean(m.predict(X_test) != y_test))   # fraction misclassified\nbest_k = np.argmin(error_rate) + 1\n```\n\n**Marks:** StandardScaler fit on **train only**; KNN fit/predict; choose K by minimizing error (`np.mean(pred != y_test)` = error rate)."
+        },
+        {
+          "type": "open",
+          "freq": 3,
+          "sources": [
+            "Mock Code"
+          ],
+          "tags": [
+            "sklearn",
+            "SVM",
+            "random forest",
+            "code"
+          ],
+          "q": "**Write Python (scikit-learn) code.** (a) Train an **SVM** and tune its hyperparameters (`C`, `gamma`, `kernel`) with **GridSearchCV**. (b) Also train a **Random Forest** and print a classification report.",
+          "answer": "```python\nfrom sklearn.svm import SVC\nfrom sklearn.ensemble import RandomForestClassifier\nfrom sklearn.model_selection import GridSearchCV\nfrom sklearn.metrics import classification_report\n\n# (a) SVM + grid search\nparam_grid = {'C':[0.1,1,10,100], 'gamma':[1,0.1,0.01,0.001], 'kernel':['rbf','linear']}\ngrid = GridSearchCV(SVC(), param_grid, refit=True, verbose=1)\ngrid.fit(X_train, y_train)\nprint(grid.best_estimator_)\ngrid_pred = grid.predict(X_test)\n\n# (b) Random Forest\nrfc = RandomForestClassifier(n_estimators=600)\nrfc.fit(X_train, y_train)\nprint(classification_report(y_test, rfc.predict(X_test)))\n```\n\n**Marks:** `GridSearchCV(SVC(), param_grid, refit=True)` (C controls soft-margin penalty, gamma the RBF width); RandomForest = many trees voting (`n_estimators`)."
+        },
+        {
+          "type": "open",
+          "freq": 3,
+          "sources": [
+            "Mock Code"
+          ],
+          "tags": [
+            "Keras",
+            "preprocessing",
+            "code"
+          ],
+          "q": "**Write Python code.** Given raw data `X` (images 28×28) and integer labels `y`, prepare it for a Keras dense network: (a) train/test split, (b) flatten + normalize the images, (c) one-hot encode the labels. Then explain in one sentence why the data is split.",
+          "answer": "```python\nfrom sklearn.model_selection import train_test_split\nfrom tensorflow.keras.utils import to_categorical\n\nX_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.30)\n\n# flatten 28x28 -> 784 and scale pixels 0-255 -> 0-1\nX_train = X_train.reshape((-1, 28*28)).astype('float32') / 255\nX_test  = X_test.reshape((-1, 28*28)).astype('float32') / 255\n\n# integer labels -> one-hot (for categorical_crossentropy)\ny_train = to_categorical(y_train)\ny_test  = to_categorical(y_test)\n```\n\n**Why split:** so the model is **evaluated on data it never trained on**, giving an unbiased estimate of generalization (train learns, val tunes, test only estimates)."
+        }
+      ]
+    }
+  ]
+}
